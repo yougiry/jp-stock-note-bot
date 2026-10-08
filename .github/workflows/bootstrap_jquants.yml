@@ -1,0 +1,53 @@
+name: Bootstrap J-Quants History
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Bootstrap J-Quants history
+        env:
+          JQUANTS_API_KEY: ${{ secrets.JQUANTS_API_KEY }}
+        run: |
+          python prediction/collect_jquants_history.py
+
+      - name: Show downloaded market files
+        run: |
+          echo "J-Quants files:"
+          find data/market/jquants -maxdepth 1 -type f -name "*.json" | sort
+          echo
+          echo "File count:"
+          find data/market/jquants -maxdepth 1 -type f -name "*.json" | wc -l
+
+      - name: Commit J-Quants history
+        run: |
+          if git diff --quiet -- data/market/jquants; then
+            echo "No new J-Quants history files."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add data/market/jquants
+          git commit -m "Bootstrap J-Quants market history"
+          git push
