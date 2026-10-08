@@ -41,7 +41,6 @@ def pct(value, base):
 
     return ((value / base) - 1) * 100
 
-
 def load_history():
 
     by_date = {}
@@ -53,14 +52,16 @@ def load_history():
     for path in files:
 
         payload = json.loads(
-            path.read_text(encoding="utf-8")
+            path.read_text(
+                encoding="utf-8"
+            )
         )
 
-        # Support either raw list or {"data": [...]}
-            if isinstance(payload, dict):
-                rows = payload.get("rows", [])
-            else:
-                rows = payload
+        # J-Quants historical cache format
+        if isinstance(payload, dict):
+            rows = payload.get("rows", [])
+        else:
+            rows = payload
 
         date_map = {}
 
@@ -86,7 +87,6 @@ def load_history():
             by_date[path.stem] = date_map
 
     return by_date
-
 
 def build_label(
     feature_date,
