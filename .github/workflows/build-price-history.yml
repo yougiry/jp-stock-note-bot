@@ -29,12 +29,16 @@ jobs:
       - name: Install dependencies
         run: |
           pip install requests
-
+          
       - name: Build price history
         env:
           JQUANTS_API_KEY: ${{ secrets.JQUANTS_API_KEY }}
         run: |
           python prediction/build_price_history.py
+
+      - name: Calculate v5.11 price factors
+        run: |
+          python prediction/calculate_price_factors.py
 
       - name: Persist price history
         run: |
