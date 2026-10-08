@@ -1,0 +1,121 @@
+name: v5.11 Morning Prediction
+
+on:
+  # 手動実行
+  workflow_dispatch:
+
+  # JST 06:00 = UTC 21:00（前日）
+  schedule:
+    - cron: "0 21 * * 0-4"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: v511-morning-production
+  cancel-in-progress: false
+
+jobs:
+  morning:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      # ==========================================
+      # 1. Repository
+      # ==========================================
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ==========================================
+      # 2. Python
+      # ==========================================
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests Pillow
+
+      # ==========================================
+      # 3. Japanese fonts
+      # ==========================================
+
+      - name: Install Japanese fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-noto-cjk
+          fc-cache -f
+
+      # ==========================================
+      # 4. Resolve today's Prediction JSON
+      # ==========================================
+
+      - name: Resolve Prediction JSON
+        id: prediction
+        shell: bash
+        run: |
+          TODAY_JST=$(TZ=Asia/Tokyo date +%Y%m%d)
+
+          PREDICTION_FILE="data/prediction/v511_${TODAY_JST}.json"
+
+          echo "JST DATE: ${TODAY_JST}"
+          echo "PREDICTION FILE: ${PREDICTION_FILE}"
+
+          if [ ! -f "${PREDICTION_FILE}" ]; then
+            echo "Prediction JSON does not exist."
+            echo "Expected: ${PREDICTION_FILE}"
+            exit 1
+          fi
+
+          echo "prediction_file=${PREDICTION_FILE}" >> "$GITHUB_OUTPUT"
+
+      # ==========================================
+      # 5. Generate eyecatch
+      # ==========================================
+
+      - name: Generate eyecatch
+        env:
+          PREDICTION_JSON: ${{ steps.prediction.outputs.prediction_file }}
+        run: |
+          python article/create_eyecatch.py
+
+      # ==========================================
+      # 6. Publish to note
+      # ==========================================
+
+      - name: Publish Morning Prediction
+        env:
+          NOTE_COOKIE: ${{ secrets.NOTE_COOKIE }}
+          DRY_RUN: "false"
+          PREDICTION_JSON: ${{ steps.prediction.outputs.prediction_file }}
+        run: |
+          python note/publish.py
+
+      # ==========================================
+      # 7. Persist publication marker
+      # ==========================================
+
+      - name: Persist publication marker
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add data/published/
+
+          if git diff --cached --quiet; then
+            echo "No new publication marker."
+            exit 0
+          fi
+
+          git commit -m "Record morning Prediction publication"
+
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
