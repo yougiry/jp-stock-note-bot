@@ -213,10 +213,10 @@ def volatility(rows, window):
         returns
     )
 
-
 def high_distance(rows, window):
 
-    if not rows:
+    # Require a complete window.
+    if len(rows) < window:
         return None
 
     selected = rows[-window:]
@@ -229,12 +229,20 @@ def high_distance(rows, window):
         if r["adj_high"] is not None
     ]
 
+    # Missing observations inside the window
+    # invalidate the feature.
     if (
         current is None
-        or not highs
+        or len(highs) < window
     ):
         return None
 
+    highest = max(highs)
+
+    return pct_change(
+        current,
+        highest
+    )
     highest = max(highs)
 
     return pct_change(
