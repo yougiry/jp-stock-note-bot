@@ -293,57 +293,48 @@ def complete_mean(values, required_count):
 
     return statistics.mean(values)
 
-def calculate_stock(
-    code,
-    rows,
-):
+def calculate_stock(code, rows):
 
     current = rows[-1]
 
-    current_volume = (
-        current["adj_volume"]
-    )
+    current_volume = current["adj_volume"]
+    current_value = current["trading_value"]
 
-    current_value = (
-        current["trading_value"]
-    )
-
-    # Previous observations only.
-    # Current day is deliberately excluded
-    # from baseline averages.
+    # Current day must not be included in baseline averages.
     previous = rows[:-1]
 
-volume_5_base = complete_mean(
-    [
-        r["adj_volume"]
-        for r in previous[-5:]
-    ],
-    5,
-)
+    volume_5_base = complete_mean(
+        [
+            r["adj_volume"]
+            for r in previous[-5:]
+        ],
+        5,
+    )
 
-volume_20_base = complete_mean(
-    [
-        r["adj_volume"]
-        for r in previous[-20:]
-    ],
-    20,
-)
+    volume_20_base = complete_mean(
+        [
+            r["adj_volume"]
+            for r in previous[-20:]
+        ],
+        20,
+    )
 
-value_5_base = complete_mean(
-    [
-        r["trading_value"]
-        for r in previous[-5:]
-    ],
-    5,
-)
+    value_5_base = complete_mean(
+        [
+            r["trading_value"]
+            for r in previous[-5:]
+        ],
+        5,
+    )
 
-value_20_base = complete_mean(
-    [
-        r["trading_value"]
-        for r in previous[-20:]
-    ],
-    20,
-)
+    value_20_base = complete_mean(
+        [
+            r["trading_value"]
+            for r in previous[-20:]
+        ],
+        20,
+    )
+
     gap = None
 
     if len(rows) >= 2:
@@ -353,98 +344,68 @@ value_20_base = complete_mean(
         )
 
     result = {
-        "code":
-            code,
+        "code": code,
+        "feature_date": current["date"],
+        "history_days": len(rows),
 
-        "feature_date":
-            current["date"],
-
-        "history_days":
-            len(rows),
-
-        "previous_close":
-            current["close"],
-
-        "market_cap":
-            current["market_cap"],
+        "previous_close": current["close"],
+        "market_cap": current["market_cap"],
 
         # Momentum
-        "return_1d":
-            historical_return(rows, 1),
-
-        "return_5d":
-            historical_return(rows, 5),
-
-        "return_10d":
-            historical_return(rows, 10),
-
-        "return_20d":
-            historical_return(rows, 20),
-
-        "return_60d":
-            historical_return(rows, 60),
+        "return_1d": historical_return(rows, 1),
+        "return_5d": historical_return(rows, 5),
+        "return_10d": historical_return(rows, 10),
+        "return_20d": historical_return(rows, 20),
+        "return_60d": historical_return(rows, 60),
 
         # Flow
-        "volume":
+        "volume": current_volume,
+
+        "volume_ratio_5d": ratio(
             current_volume,
+            volume_5_base,
+        ),
 
-        "volume_ratio_5d":
-            ratio(
-                current_volume,
-                volume_5_base,
-            ),
+        "volume_ratio_20d": ratio(
+            current_volume,
+            volume_20_base,
+        ),
 
-        "volume_ratio_20d":
-            ratio(
-                current_volume,
-                volume_20_base,
-            ),
+        "trading_value": current_value,
 
-        "trading_value":
+        "trading_value_ratio_5d": ratio(
             current_value,
+            value_5_base,
+        ),
 
-        "trading_value_ratio_5d":
-            ratio(
-                current_value,
-                value_5_base,
-            ),
-
-        "trading_value_ratio_20d":
-            ratio(
-                current_value,
-                value_20_base,
-            ),
+        "trading_value_ratio_20d": ratio(
+            current_value,
+            value_20_base,
+        ),
 
         # Risk / price structure
-        "volatility_5d":
-            volatility(rows, 5),
+        "volatility_5d": volatility(rows, 5),
+        "volatility_20d": volatility(rows, 20),
 
-        "volatility_20d":
-            volatility(rows, 20),
+        "distance_from_20d_high": high_distance(
+            rows,
+            20,
+        ),
 
-        "distance_from_20d_high":
-            high_distance(rows, 20),
+        "distance_from_60d_high": high_distance(
+            rows,
+            60,
+        ),
 
-        "distance_from_60d_high":
-            high_distance(rows, 60),
+        "consecutive_up_days": consecutive_up_days(rows),
 
-        "consecutive_up_days":
-            consecutive_up_days(rows),
+        "gap": gap,
 
-        "gap":
-            gap,
+        "upper_limit": current["upper_limit"],
+        "lower_limit": current["lower_limit"],
 
-        "upper_limit":
-            current["upper_limit"],
-
-        "lower_limit":
-            current["lower_limit"],
-
-        "source":
-            "J-Quants",
-
-        "feature_version":
-            "v511-price-factor-v1",
+        "source": "J-Quants",
+        "feature_version": "v511-price-factor-v1",
     }
 
     return result
