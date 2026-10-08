@@ -16,13 +16,20 @@ API_KEY = os.environ.get(
 BASE_URL = "https://api.jquants.com/v2"
 
 # Historical test period.
-# J-Quants Free coverage confirmed through 2026-07-16.
+# Current historical lane ends here.
 END_DATE = date(2026, 7, 16)
 
 TARGET_TRADING_DAYS = 80
 
-# Limit requests per single GitHub Actions run.
-MAX_REQUESTS_PER_RUN = 5
+# Target number of newly SAVED trading days
+# in one GitHub Actions run.
+MAX_SUCCESSFUL_DAYS_PER_RUN = 5
+
+# Safety gate:
+# Holidays / invalid dates do not consume the
+# successful-day quota, but API requests still
+# need a hard upper bound.
+MAX_API_REQUESTS_PER_RUN = 10
 
 RAW_DIR = Path(
     "data/market/jquants"
@@ -38,11 +45,13 @@ def log(*args):
 
 
 def fail(message, code=1):
+
     log("")
     log("==============================")
     log("PRICE HISTORY: FAILED")
     log(message)
     log("==============================")
+
     sys.exit(code)
 
 
@@ -62,6 +71,7 @@ def fetch_day(target_date):
     )
 
     try:
+
         response = requests.get(
             url,
             headers=HEADERS,
@@ -70,6 +80,7 @@ def fetch_day(target_date):
         )
 
     except requests.RequestException as e:
+
         fail(
             "Connection error: "
             + repr(e)
@@ -81,27 +92,33 @@ def fetch_day(target_date):
     )
 
     if response.status_code == 429:
+
         log(
             "RATE LIMIT reached."
         )
+
         return "RATE_LIMIT", None
 
     if response.status_code == 400:
+
         log(
             "RESPONSE:",
             response.text[:300]
         )
+
         return "INVALID_DATE", None
 
     if response.status_code in (
         401,
         403,
     ):
+
         fail(
             "Authentication/permission error"
         )
 
     if response.status_code != 200:
+
         fail(
             f"Unexpected HTTP "
             f"{response.status_code}"
@@ -128,8 +145,8 @@ def save_day(
     )
 
     output = (
-        RAW_DIR /
-        f"{target_date.isoformat()}.json"
+        RAW_DIR
+        / f"{target_date.isoformat()}.json"
     )
 
     payload = {
@@ -176,6 +193,7 @@ def existing_trading_days():
     for file in files:
 
         try:
+
             payload = json.loads(
                 file.read_text(
                     encoding="utf-8"
@@ -188,11 +206,13 @@ def existing_trading_days():
             )
 
             if rows:
+
                 valid.append(
                     file.stem
                 )
 
         except Exception:
+
             continue
 
     return valid
@@ -201,6 +221,7 @@ def existing_trading_days():
 def main():
 
     if not API_KEY:
+
         fail(
             "JQUANTS_API_KEY missing"
         )
@@ -222,10 +243,29 @@ def main():
         len(existing)
     )
 
+    log(
+        "Target trading days:",
+        TARGET_TRADING_DAYS
+    )
+
+    log(
+        "Max successful days/run:",
+        MAX_SUCCESSFUL_DAYS_PER_RUN
+    )
+
+    log(
+        "Max API requests/run:",
+        MAX_API_REQUESTS_PER_RUN
+    )
+
     if len(existing) >= TARGET_TRADING_DAYS:
 
         log(
             "TARGET ALREADY COMPLETE"
+        )
+
+        log(
+            "HISTORY STATUS: COMPLETE"
         )
 
         sys.exit(0)
@@ -233,20 +273,46 @@ def main():
     current = END_DATE
 
     requests_used = 0
+    successful_days = 0
+    skipped_existing = 0
+    skipped_weekends = 0
+    no_data_days = 0
+    invalid_dates = 0
 
-    while requests_used < MAX_REQUESTS_PER_RUN:
+    while (
+        successful_days
+        < MAX_SUCCESSFUL_DAYS_PER_RUN
+        and requests_used
+        < MAX_API_REQUESTS_PER_RUN
+    ):
+
+        # Re-check target during the run.
+        current_existing_count = (
+            len(existing)
+            + successful_days
+        )
+
+        if (
+            current_existing_count
+            >= TARGET_TRADING_DAYS
+        ):
+
+            break
 
         date_string = (
             current.isoformat()
         )
 
         output = (
-            RAW_DIR /
-            f"{date_string}.json"
+            RAW_DIR
+            / f"{date_string}.json"
         )
 
-        # Already downloaded
+        # Already downloaded.
+        # No API request is consumed.
         if output.exists():
+
+            skipped_existing += 1
 
             current -= timedelta(
                 days=1
@@ -254,8 +320,11 @@ def main():
 
             continue
 
-        # Never request weekends
+        # Never request Saturdays/Sundays.
+        # No API request is consumed.
         if current.weekday() >= 5:
+
+            skipped_weekends += 1
 
             current -= timedelta(
                 days=1
@@ -269,19 +338,29 @@ def main():
 
         requests_used += 1
 
+        # Stop immediately.
+        # Do not keep hammering the API.
         if status == "RATE_LIMIT":
+
             break
 
         if status == "INVALID_DATE":
+
+            invalid_dates += 1
 
             current -= timedelta(
                 days=1
             )
 
+            time.sleep(2)
+
             continue
 
-        # Holiday
+        # Exchange holiday or otherwise
+        # no daily bars returned.
         if not rows:
+
+            no_data_days += 1
 
             log(
                 "NO DATA:",
@@ -301,14 +380,18 @@ def main():
             rows,
         )
 
+        successful_days += 1
+
         current -= timedelta(
             days=1
         )
 
-        # Conservative spacing
+        # Conservative spacing.
         time.sleep(3)
 
-    existing = existing_trading_days()
+    final_existing = (
+        existing_trading_days()
+    )
 
     log("")
     log("==============================")
@@ -316,13 +399,38 @@ def main():
     log("==============================")
 
     log(
-        "Requests this run:",
+        "API requests this run:",
         requests_used
     )
 
     log(
+        "Successful trading days:",
+        successful_days
+    )
+
+    log(
+        "Skipped existing:",
+        skipped_existing
+    )
+
+    log(
+        "Skipped weekends:",
+        skipped_weekends
+    )
+
+    log(
+        "No-data weekdays:",
+        no_data_days
+    )
+
+    log(
+        "Invalid dates:",
+        invalid_dates
+    )
+
+    log(
         "Stored trading days:",
-        len(existing)
+        len(final_existing)
     )
 
     log(
@@ -330,11 +438,17 @@ def main():
         TARGET_TRADING_DAYS
     )
 
-    if len(existing) >= TARGET_TRADING_DAYS:
+    if (
+        len(final_existing)
+        >= TARGET_TRADING_DAYS
+    ):
+
         log(
             "HISTORY STATUS: COMPLETE"
         )
+
     else:
+
         log(
             "HISTORY STATUS: PARTIAL"
         )
