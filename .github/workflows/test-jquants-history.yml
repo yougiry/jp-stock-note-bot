@@ -1,0 +1,39 @@
+name: Test J-Quants History
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install requests
+
+      - name: Download historical test
+        env:
+          JQUANTS_API_KEY: ${{ secrets.JQUANTS_API_KEY }}
+        run: |
+          python prediction/collect_jquants_history.py
+
+      - name: Show downloaded files
+        run: |
+          find data/market/jquants \
+            -type f \
+            -maxdepth 1 \
+            -print
