@@ -3,7 +3,10 @@ import sys
 import requests
 
 
-API_KEY = os.environ.get("JQUANTS_API_KEY")
+API_KEY = os.environ.get(
+    "JQUANTS_API_KEY",
+    ""
+).strip()
 
 BASE_URL = "https://api.jquants.com/v2"
 
