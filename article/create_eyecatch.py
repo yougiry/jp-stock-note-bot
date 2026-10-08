@@ -1,189 +1,146 @@
 import json
 import os
 from pathlib import Path
-from datetime import datetime
 
 from PIL import Image, ImageDraw, ImageFont
+
+
+WIDTH = 1280
+HEIGHT = 670
 
 INPUT = Path(
     os.environ.get(
         "PREDICTION_JSON",
-        "data/prediction/sample_v511.json"
+        "data/prediction/v59_today.json",
     )
 )
 
 OUTPUT = Path("output/eyecatch.png")
 
-WIDTH = 1280
-HEIGHT = 670
 
-# =========================================
-# 1. Prediction JSON
-# =========================================
+def load_font(size, bold=False):
+    candidates = []
 
-with INPUT.open("r", encoding="utf-8") as f:
-    data = json.load(f)
+    if bold:
+        candidates.extend([
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+            "/usr/share/fonts/opentype/noto/NotoSansCJKjp-Bold.otf",
+        ])
 
-prediction_id = str(data["prediction_id"])
-candidates = data.get("candidates", [])
+    candidates.extend([
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJKjp-Regular.otf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    ])
 
-buy_count = sum(
-    1 for c in candidates
-    if c.get("decision") == "買い候補"
-)
+    for path in candidates:
+        if Path(path).exists():
+            return ImageFont.truetype(path, size)
 
-# Prediction IDから日付を取得
-try:
-    date_text = prediction_id.split("-")[1]
-    dt = datetime.strptime(date_text, "%Y%m%d")
-    display_date = dt.strftime("%Y.%m.%d")
-except Exception:
-    display_date = "DATE UNKNOWN"
-
-# =========================================
-# 2. Canvas
-# =========================================
-
-img = Image.new(
-    "RGB",
-    (WIDTH, HEIGHT),
-    (15, 23, 42)
-)
-
-draw = ImageDraw.Draw(img)
+    return ImageFont.load_default()
 
 
-# =========================================
-# 3. Fonts
-# =========================================
-
-import glob
-
-font_patterns = [
-    "/usr/share/fonts/**/*NotoSansCJK*.ttc",
-    "/usr/share/fonts/**/*NotoSansCJK*.otf",
-    "/usr/share/fonts/**/*NotoSansJP*.ttf",
-    "/usr/share/fonts/**/*NotoSansJP*.otf",
-]
-
-font_files = []
-
-for pattern in font_patterns:
-    font_files.extend(
-        glob.glob(pattern, recursive=True)
-    )
-
-if not font_files:
-    raise RuntimeError(
-        "Japanese Noto font file not found. "
-        "Check fonts-noto-cjk installation."
-    )
-
-# Boldを優先
-bold_fonts = [
-    path for path in font_files
-    if "Bold" in Path(path).name
-]
-
-if bold_fonts:
-    font_path = sorted(bold_fonts)[0]
-else:
-    font_path = sorted(font_files)[0]
-
-print("JAPANESE FONT:", font_path)
-
-font_small = ImageFont.truetype(font_path, 32)
-font_medium = ImageFont.truetype(font_path, 48)
-font_large = ImageFont.truetype(font_path, 78)
-font_xlarge = ImageFont.truetype(font_path, 92)
-# =========================================
-# 4. Header
-# =========================================
-
-draw.text(
-    (75, 65),
-    "Prediction Engine v5.11",
-    font=font_small,
-    fill=(150, 180, 220)
-)
-
-draw.text(
-    (75, 135),
-    "日本株",
-    font=font_large,
-    fill=(255, 255, 255)
-)
-
-draw.text(
-    (75, 235),
-    "翌営業日 急騰候補",
-    font=font_xlarge,
-    fill=(255, 255, 255)
-)
-
-# =========================================
-# 5. Divider
-# =========================================
-
-draw.rectangle(
-    (75, 370, 1205, 374),
-    fill=(80, 140, 255)
-)
-
-# =========================================
-# 6. Date / candidate count
-# =========================================
-
-draw.text(
-    (75, 420),
-    display_date,
-    font=font_medium,
-    fill=(220, 225, 235)
-)
-
-draw.text(
-    (75, 500),
-    f"買い候補 {buy_count}銘柄",
-    font=font_medium,
-    fill=(255, 215, 90)
-)
-
-# =========================================
-# 7. Footer
-# =========================================
-
-draw.text(
-    (75, 605),
-    "AI × Catalyst × Theme × Flow × Risk",
-    font=font_small,
-    fill=(140, 150, 170)
-)
-
-# =========================================
-# 8. Save
-# =========================================
-
-OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-
-img.save(
-    OUTPUT,
-    format="PNG",
-    optimize=True
-)
-
-# =========================================
-# 9. Verification
-# =========================================
-
-with Image.open(OUTPUT) as check:
-    if check.size != (1280, 670):
-        raise RuntimeError(
-            f"Invalid eyecatch size: {check.size}"
+def main():
+    if not INPUT.exists():
+        raise FileNotFoundError(
+            f"Prediction JSON not found: {INPUT}"
         )
 
-    print("EYECATCH GENERATION: PASS")
-    print("SIZE:", check.size)
-    print("FORMAT:", check.format)
+    data = json.loads(
+        INPUT.read_text(encoding="utf-8")
+    )
+
+    target_date = data.get("target_date", "")
+    engine = data.get(
+        "engine",
+        "Prediction Engine v5.9"
+    )
+
+    OUTPUT.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    image = Image.new(
+        "RGB",
+        (WIDTH, HEIGHT),
+        (12, 18, 32),
+    )
+
+    draw = ImageDraw.Draw(image)
+
+    # Accent lines
+    draw.rectangle(
+        (0, 0, WIDTH, 16),
+        fill=(210, 45, 45),
+    )
+
+    draw.rectangle(
+        (80, 135, 95, 535),
+        fill=(210, 45, 45),
+    )
+
+    font_small = load_font(34)
+    font_medium = load_font(48, bold=True)
+    font_large = load_font(82, bold=True)
+    font_date = load_font(38)
+
+    draw.text(
+        (125, 120),
+        "日本個別株",
+        font=font_medium,
+        fill=(220, 225, 235),
+    )
+
+    draw.text(
+        (125, 205),
+        "翌営業日",
+        font=font_large,
+        fill=(255, 255, 255),
+    )
+
+    draw.text(
+        (125, 310),
+        "急騰 ＋ ストップ高候補",
+        font=font_large,
+        fill=(255, 255, 255),
+    )
+
+    draw.text(
+        (125, 440),
+        engine,
+        font=font_small,
+        fill=(185, 195, 210),
+    )
+
+    if target_date:
+        draw.text(
+            (125, 510),
+            f"TARGET  {target_date}",
+            font=font_date,
+            fill=(235, 235, 235),
+        )
+
+    draw.text(
+        (125, 590),
+        "Prediction / EEV / Downside Risk",
+        font=font_small,
+        fill=(155, 165, 180),
+    )
+
+    image.save(
+        OUTPUT,
+        format="PNG",
+        optimize=True,
+    )
+
+    print("==============================")
+    print("EYECATCH GENERATED")
+    print("==============================")
+    print("INPUT :", INPUT)
     print("OUTPUT:", OUTPUT)
-    print("Prediction ID:", prediction_id)
-    print("買い候補:", buy_count)
+    print("SIZE  :", image.size)
+
+
+if __name__ == "__main__":
+    main()
