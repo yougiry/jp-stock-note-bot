@@ -159,40 +159,24 @@ session.headers.update(headers)
 # 4.5 Duplicate protection
 # =========================================
 
+PUBLISHED_DIR = Path("data/published")
+PUBLISHED_DIR.mkdir(parents=True, exist_ok=True)
+
+marker_file = PUBLISHED_DIR / f"{prediction_id}.json"
+
 print("DUPLICATE CHECK: START")
+print("Prediction ID:", prediction_id)
 
-check_url = "https://note.com/api/v2/creators/contents"
-
-try:
-    response = session.get(
-        check_url,
-        params={
-            "kind": "note",
-            "page": 1
-        },
-        timeout=30,
-    )
-
-    print("DUPLICATE CHECK STATUS:", response.status_code)
-
-    if response.status_code != 200:
-        print("DUPLICATE CHECK: FAILED")
-        raise SystemExit(1)
-
-    if prediction_id in response.text:
-        print("==============================")
-        print("DUPLICATE DETECTED")
-        print("Prediction ID:", prediction_id)
-        print("新規下書き作成を中止します")
-        print("==============================")
-        raise SystemExit(0)
-
-except requests.RequestException as e:
-    print("DUPLICATE CHECK: CONNECTION ERROR")
-    print(type(e).__name__)
-    raise SystemExit(1)
+if marker_file.exists():
+    print("==============================")
+    print("DUPLICATE DETECTED")
+    print("既に処理済みのPrediction IDです")
+    print("新規note作成を中止します")
+    print("==============================")
+    raise SystemExit(0)
 
 print("DUPLICATE CHECK: PASS")
+
 # =========================================
 # 5. Create draft
 # =========================================
@@ -268,3 +252,26 @@ print("==============================")
 print("Prediction ID:", prediction_id)
 print("NOTE ID:", note_id)
 print("NOTE KEY:", note_key)
+
+# =========================================
+# 7. Save publication marker
+# =========================================
+
+marker_data = {
+    "prediction_id": prediction_id,
+    "note_id": note_id,
+    "note_key": note_key,
+    "status": "DRAFT_CREATED"
+}
+
+marker_file.write_text(
+    json.dumps(
+        marker_data,
+        ensure_ascii=False,
+        indent=2
+    ),
+    encoding="utf-8"
+)
+
+print("PUBLICATION MARKER: CREATED")
+print("MARKER:", marker_file)
