@@ -44,7 +44,6 @@ img = Image.new(
 )
 
 draw = ImageDraw.Draw(img)
-
 # =========================================
 # 3. Fonts
 # =========================================
@@ -52,7 +51,6 @@ draw = ImageDraw.Draw(img)
 font_candidates = [
     "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
     "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
 ]
 
 font_path = None
@@ -63,13 +61,17 @@ for candidate in font_candidates:
         break
 
 if not font_path:
-    raise RuntimeError("Usable font not found")
+    raise RuntimeError(
+        "Japanese Noto CJK font not found. "
+        "Install fonts-noto-cjk before generating eyecatch."
+    )
+
+print("FONT:", font_path)
 
 font_small = ImageFont.truetype(font_path, 32)
 font_medium = ImageFont.truetype(font_path, 48)
 font_large = ImageFont.truetype(font_path, 78)
 font_xlarge = ImageFont.truetype(font_path, 92)
-
 # =========================================
 # 4. Header
 # =========================================
