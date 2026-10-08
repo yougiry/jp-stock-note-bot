@@ -470,27 +470,30 @@ def main():
 
         if not labels:
             continue
+        # Point-in-time history:
+        # only payloads available on or before feature_date.
+        historical_payloads = [
+            history[d]
+            for d in dates[:date_index + 1]
+        ]
 
-        universe_codes = set()
-
-        for d in dates[:date_index + 1]:
-            universe_codes.update(history[d].keys())
+        stocks = build_stock_history(
+            historical_payloads
+        )
 
         daily = []
 
-        for code in universe_codes:
-            rows = []
-
-            for d in dates[:date_index + 1]:
-                row = history[d].get(code)
-
-                if row is not None:
-                    rows.append(row)
+        for code, rows in stocks.items():
 
             if len(rows) < MIN_HISTORY:
                 continue
 
-            f = build_features(rows)
+            # IMPORTANT:
+            # Exact same Feature Engine as production.
+            f = calculate_stock(
+                code,
+                rows,
+            )
 
             if f is None:
                 continue
