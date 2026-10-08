@@ -1,6 +1,7 @@
 import io
-import requests
+
 import pandas as pd
+import requests
 
 
 JPX_LIST_URL = (
@@ -11,7 +12,6 @@ JPX_LIST_URL = (
 
 
 def collect_jpx_universe():
-
     print("JPX UNIVERSE: START")
 
     response = requests.get(
@@ -29,16 +29,8 @@ def collect_jpx_universe():
         io.BytesIO(response.content)
     )
 
-    print(
-        "JPX RAW ROWS:",
-        len(df)
-    )
-
-    # JPXの列名変更に備えて確認
-    print(
-        "JPX COLUMNS:",
-        list(df.columns)
-    )
+    print("JPX RAW ROWS:", len(df))
+    print("JPX COLUMNS:", list(df.columns))
 
     required = [
         "コード",
@@ -52,12 +44,11 @@ def collect_jpx_universe():
                 f"JPX column missing: {column}"
             )
 
-    # ---------------------------------------
-    # 東証普通株
-    # ---------------------------------------
-
+    # Prime / Standard / Growth listed securities
     market = df[
-        df["市場・商品区分"].astype(str).str.contains(
+        df["市場・商品区分"]
+        .astype(str)
+        .str.contains(
             "プライム|スタンダード|グロース",
             regex=True,
             na=False,
@@ -81,25 +72,23 @@ def collect_jpx_universe():
     stocks = []
 
     for _, row in market.iterrows():
+        stocks.append(
+            {
+                "code": str(row["コード"]),
+                "name": str(row["銘柄名"]),
+                "market": str(
+                    row["市場・商品区分"]
+                ),
+            }
+        )
 
-        stocks.append({
-            "code":
-                str(row["コード"]),
+    print("JPX UNIVERSE: PASS")
+    print("TOKYO STOCKS:", len(stocks))
 
-            "name":
-                str(row["銘柄名"]),
+    return stocks
 
-            "market":
-                str(row["市場・商品区分"]),
-        })
 
-    print(
-        "JPX UNIVERSE: PASS"
-    )
-
-    print(
-        "TOKYO STOCKS:",
-        if __name__ == "__main__":
+if __name__ == "__main__":
     stocks = collect_jpx_universe()
 
     print("")
@@ -107,10 +96,7 @@ def collect_jpx_universe():
     print("JPX UNIVERSE TEST: SUCCESS")
     print("==============================")
     print("Stocks:", len(stocks))
+    print("")
 
     for stock in stocks[:10]:
         print(stock)
-        len(stocks)
-    )
-
-    return stocks
