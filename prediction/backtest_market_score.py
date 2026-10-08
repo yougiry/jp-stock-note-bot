@@ -3,7 +3,11 @@ import math
 from pathlib import Path
 from statistics import mean
 
-
+from feature_engine import (
+    MIN_HISTORY,
+    build_stock_history,
+    calculate_stock,
+)
 RAW_DIR = Path("data/market/jquants")
 LABEL_DIR = Path("data/labels")
 OUTPUT_DIR = Path("data/backtest")
