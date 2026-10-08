@@ -119,6 +119,8 @@ def main():
             "Freeze generation failed"
         )
 
+    frozen["target_date"] = target_date
+
     # ------------------------------------------
     # Save
     # ------------------------------------------

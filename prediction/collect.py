@@ -1,121 +1,73 @@
+import json
 from datetime import datetime
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from collect_universe import collect_jpx_universe
-
-
 JST = ZoneInfo("Asia/Tokyo")
+UNIVERSE_DIR = Path("data/universe")
 
 
-def collect_market_data(
-    target_date,
-    execution_time,
-):
+def _latest_universe_file():
+    files = sorted(UNIVERSE_DIR.glob("v511_universe_????-??-??.json"))
+    return files[-1] if files else None
 
-    print(
-        "Target date:",
-        target_date
-    )
 
-    print(
-        "Prediction cutoff:",
-        execution_time.isoformat()
-    )
+def collect_market_data(target_date, execution_time):
+    print("Target date:", target_date)
+    print("Prediction cutoff:", execution_time.isoformat())
 
-    # ==========================================
-    # JPX Universe
-    # ==========================================
-
-    retrieval_time = datetime.now(JST)
-
-    try:
-        stocks = collect_jpx_universe()
-
-    except Exception as e:
-
-        print(
-            "JPX UNIVERSE FAILED:",
-            repr(e)
-        )
-
+    source = _latest_universe_file()
+    if source is None:
+        print("UNIVERSE FEATURE FILE: NOT FOUND")
         return None
+
+    payload = json.loads(source.read_text(encoding="utf-8"))
+    stocks = payload.get("stocks", [])
+    coverage = float(payload.get("coverage", 0) or 0)
+    feature_date = payload.get("feature_date")
 
     if not stocks:
-
-        print(
-            "JPX UNIVERSE EMPTY"
-        )
-
+        print("UNIVERSE FEATURES EMPTY")
         return None
 
-    # ==========================================
-    # Source Audit
-    # ==========================================
+    retrieval_time = datetime.now(JST).isoformat()
+    sources = [
+        {
+            "source_id": "JPX_LISTED_COMPANIES",
+            "source_type": "primary",
+            "source_tier": "JPX",
+            "purpose": "universe",
+            "publication_timestamp": None,
+            "retrieval_timestamp": retrieval_time,
+            "prediction_cutoff": execution_time.isoformat(),
+            "scoring_eligible": False,
+            "factor_owner": "Universe",
+            "snapshot_quality": "PRIMARY_SOURCE",
+        },
+        {
+            "source_id": f"JQUANTS_DAILY_{feature_date}",
+            "source_type": "primary",
+            "source_tier": "J-Quants",
+            "purpose": "price_volume_features",
+            "publication_timestamp": feature_date,
+            "retrieval_timestamp": retrieval_time,
+            "prediction_cutoff": execution_time.isoformat(),
+            "scoring_eligible": True,
+            "factor_owner": "Price/Flow/Liquidity/Risk/Size",
+            "snapshot_quality": "DAILY_CLOSE",
+        },
+    ]
 
-    sources = [{
-        "source_id":
-            "JPX_LISTED_COMPANIES",
+    print("MARKET DATA COLLECTION: PASS")
+    print("FEATURE DATE:", feature_date)
+    print("UNIVERSE:", len(stocks))
+    print("COVERAGE:", f"{coverage * 100:.2f}%")
 
-        "source_type":
-            "primary",
-
-        "source_tier":
-            "JPX",
-
-        "purpose":
-            "universe",
-
-        "url":
-            (
-                "https://www.jpx.co.jp/"
-                "markets/statistics-equities/"
-                "misc/01.html"
-            ),
-
-        "publication_timestamp":
-            None,
-
-        "retrieval_timestamp":
-            retrieval_time.isoformat(),
-
-        "prediction_cutoff":
-            execution_time.isoformat(),
-
-        "scoring_eligible":
-            False,
-
-        "factor_owner":
-            "Universe",
-
-        "snapshot_quality":
-            "PRIMARY_SOURCE",
-    }]
-
-    dataset = {
-        "target_date":
-            target_date,
-
-        "execution_time":
-            execution_time.isoformat(),
-
-        "stocks":
-            stocks,
-
-        "sources":
-            sources,
-
-        # これはまだ価格データCoverageではない。
-        "coverage":
-            0.0,
+    return {
+        "target_date": target_date,
+        "execution_time": execution_time.isoformat(),
+        "feature_date": feature_date,
+        "stocks": stocks,
+        "sources": sources,
+        "coverage": coverage,
     }
-
-    print(
-        "MARKET DATA COLLECTION: PASS"
-    )
-
-    print(
-        "UNIVERSE:",
-        len(stocks)
-    )
-
-    return dataset

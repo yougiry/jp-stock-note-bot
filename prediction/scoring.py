@@ -154,10 +154,8 @@ def run_scoring(
                 technical_score,
 
             "risk":
-                stock.get(
-                    "risk_score",
-                    "NA"
-                ),
+                ("低" if stock.get("risk_quality_score", 0) >= 16 else
+                 "中" if stock.get("risk_quality_score", 0) >= 10 else "高"),
 
             "reason":
                 reason,
@@ -182,7 +180,7 @@ def run_scoring(
 
             "risk_score":
                 stock.get(
-                    "risk_score"
+                    "risk_quality_score"
                 ),
 
             "size_score":
@@ -236,7 +234,10 @@ def run_scoring(
             "MARKET_TECHNICAL_CANDIDATE",
 
         "formal_prediction":
-            True,
+            False,
+
+        "coverage":
+            float(market_data.get("coverage", 0) or 0),
 
         "candidate_count":
             len(candidates),
