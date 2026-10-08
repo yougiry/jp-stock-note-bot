@@ -1,63 +1,89 @@
-name: v5.9 Prediction to note
+name: Find Existing v5.9
 
 on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  publish:
+  find-v59:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 5
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Python
-        uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          fetch-depth: 0
 
-      - name: Install
+      - name: Find existing v5.9 implementation
         run: |
-          pip install requests Pillow
-          sudo apt-get update
-          sudo apt-get install -y fonts-noto-cjk
+          echo ""
+          echo "=========================================="
+          echo "1. REPOSITORY FILE TREE"
+          echo "=========================================="
+          find . \
+            -type f \
+            ! -path "./.git/*" \
+            | sort
 
-      # 既存のv5.9本体を実行
-      - name: Run Prediction Engine v5.9
-        run: |
-          python prediction/v59.py
+          echo ""
+          echo "=========================================="
+          echo "2. PYTHON FILES"
+          echo "=========================================="
+          find . \
+            -type f \
+            -name "*.py" \
+            ! -path "./.git/*" \
+            | sort
 
-      # v5.9結果をそのまま記事化
-      - name: Create note article
-        run: |
-          python article/create_article.py
+          echo ""
+          echo "=========================================="
+          echo "3. WORKFLOW FILES"
+          echo "=========================================="
+          find .github/workflows \
+            -type f \
+            2>/dev/null \
+            | sort || true
 
-      - name: Create eyecatch
-        run: |
-          python article/create_eyecatch.py
+          echo ""
+          echo "=========================================="
+          echo "4. v5.9 REFERENCES"
+          echo "=========================================="
+          grep -RniE \
+            "v5[.]9|v59|Prediction Engine" \
+            . \
+            --exclude-dir=.git \
+            2>/dev/null || true
 
-      - name: Publish to note
-        env:
-          NOTE_COOKIE: ${{ secrets.NOTE_COOKIE }}
-        run: |
-          python note/publish.py
+          echo ""
+          echo "=========================================="
+          echo "5. PREDICTION REFERENCES"
+          echo "=========================================="
+          grep -RniE \
+            "prediction|急騰|ストップ高|STOP高|candidate|screening" \
+            . \
+            --include="*.py" \
+            --include="*.yml" \
+            --include="*.yaml" \
+            --exclude-dir=.git \
+            2>/dev/null || true
 
-      - name: Save publication marker
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email \
-            "41898282+github-actions[bot]@users.noreply.github.com"
+          echo ""
+          echo "=========================================="
+          echo "6. NOTE PUBLISH REFERENCES"
+          echo "=========================================="
+          grep -RniE \
+            "note.com|text_notes|NOTE_COOKIE|publish.py" \
+            . \
+            --include="*.py" \
+            --include="*.yml" \
+            --include="*.yaml" \
+            --exclude-dir=.git \
+            2>/dev/null || true
 
-          git add data/published/
-
-          if git diff --cached --quiet; then
-            exit 0
-          fi
-
-          git commit -m "Record v5.9 note publication"
-          git pull --rebase origin "${GITHUB_REF_NAME}"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          echo ""
+          echo "=========================================="
+          echo "SEARCH COMPLETE"
+          echo "=========================================="
