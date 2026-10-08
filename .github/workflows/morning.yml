@@ -1,15 +1,19 @@
-name: Find Existing v5.9
+name: Publish v5.9 Article to note
 
 on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: note-publish
+  cancel-in-progress: false
 
 jobs:
-  find-v59:
+  publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
       - name: Checkout repository
@@ -17,73 +21,35 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Find existing v5.9 implementation
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
         run: |
-          echo ""
-          echo "=========================================="
-          echo "1. REPOSITORY FILE TREE"
-          echo "=========================================="
-          find . \
-            -type f \
-            ! -path "./.git/*" \
-            | sort
+          python -m pip install --upgrade pip
+          pip install requests Pillow
 
-          echo ""
-          echo "=========================================="
-          echo "2. PYTHON FILES"
-          echo "=========================================="
-          find . \
-            -type f \
-            -name "*.py" \
-            ! -path "./.git/*" \
-            | sort
+      - name: Publish completed v5.9 article to note
+        env:
+          NOTE_COOKIE: ${{ secrets.NOTE_COOKIE }}
+          DRY_RUN: "false"
+        run: |
+          python publish.py
 
-          echo ""
-          echo "=========================================="
-          echo "3. WORKFLOW FILES"
-          echo "=========================================="
-          find .github/workflows \
-            -type f \
-            2>/dev/null \
-            | sort || true
+      - name: Save publication result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          echo ""
-          echo "=========================================="
-          echo "4. v5.9 REFERENCES"
-          echo "=========================================="
-          grep -RniE \
-            "v5[.]9|v59|Prediction Engine" \
-            . \
-            --exclude-dir=.git \
-            2>/dev/null || true
+          git add data/published/ 2>/dev/null || true
 
-          echo ""
-          echo "=========================================="
-          echo "5. PREDICTION REFERENCES"
-          echo "=========================================="
-          grep -RniE \
-            "prediction|急騰|ストップ高|STOP高|candidate|screening" \
-            . \
-            --include="*.py" \
-            --include="*.yml" \
-            --include="*.yaml" \
-            --exclude-dir=.git \
-            2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No publication marker to commit."
+            exit 0
+          fi
 
-          echo ""
-          echo "=========================================="
-          echo "6. NOTE PUBLISH REFERENCES"
-          echo "=========================================="
-          grep -RniE \
-            "note.com|text_notes|NOTE_COOKIE|publish.py" \
-            . \
-            --include="*.py" \
-            --include="*.yml" \
-            --include="*.yaml" \
-            --exclude-dir=.git \
-            2>/dev/null || true
-
-          echo ""
-          echo "=========================================="
-          echo "SEARCH COMPLETE"
-          echo "=========================================="
+          git commit -m "Record note publication"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
