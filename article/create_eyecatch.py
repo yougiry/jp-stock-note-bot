@@ -74,7 +74,7 @@ def main():
 
     draw.text(
         (125, 435),
-        "Prediction Engine v5.9",
+        "Prediction Engine v5.11",
         font=font(38),
         fill=(190, 200, 215),
     )
