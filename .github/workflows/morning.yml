@@ -78,6 +78,16 @@ jobs:
           echo "prediction_file=${PREDICTION_FILE}" >> "$GITHUB_OUTPUT"
 
       # ==========================================
+      # 4.5 Validate v5.11 Freeze
+      # ==========================================
+
+      - name: Validate Prediction Freeze
+        env:
+          PREDICTION_JSON: ${{ steps.prediction.outputs.prediction_file }}
+        run: |
+          python prediction/validate_freeze.py
+
+      # ==========================================
       # 5. Generate eyecatch
       # ==========================================
 
