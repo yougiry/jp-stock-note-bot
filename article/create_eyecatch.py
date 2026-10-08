@@ -45,55 +45,50 @@ img = Image.new(
 
 draw = ImageDraw.Draw(img)
 
+
 # =========================================
 # 3. Fonts
 # =========================================
 
-import subprocess
+import glob
 
+font_patterns = [
+    "/usr/share/fonts/**/*NotoSansCJK*.ttc",
+    "/usr/share/fonts/**/*NotoSansCJK*.otf",
+    "/usr/share/fonts/**/*NotoSansJP*.ttf",
+    "/usr/share/fonts/**/*NotoSansJP*.otf",
+]
 
-def find_japanese_font():
-    """
-    fontconfig に日本語対応フォントを問い合わせ、
-    実際にインストールされているフォントファイルを取得する。
-    """
+font_files = []
 
-    commands = [
-        ["fc-match", "-f", "%{file}", "Noto Sans CJK JP"],
-        ["fc-match", "-f", "%{file}", "Noto Sans JP"],
-        ["fc-match", "-f", "%{file}", ":lang=ja"],
-    ]
-
-    for command in commands:
-        try:
-            result = subprocess.run(
-                command,
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-
-            path = result.stdout.strip()
-
-            if path and Path(path).exists():
-                print("FONT DETECTED:", path)
-                return path
-
-        except Exception as e:
-            print("FONT SEARCH FAILED:", command, e)
-
-    raise RuntimeError(
-        "Japanese font could not be detected by fontconfig"
+for pattern in font_patterns:
+    font_files.extend(
+        glob.glob(pattern, recursive=True)
     )
 
+if not font_files:
+    raise RuntimeError(
+        "Japanese Noto font file not found. "
+        "Check fonts-noto-cjk installation."
+    )
 
-font_path = find_japanese_font()
+# Boldを優先
+bold_fonts = [
+    path for path in font_files
+    if "Bold" in Path(path).name
+]
+
+if bold_fonts:
+    font_path = sorted(bold_fonts)[0]
+else:
+    font_path = sorted(font_files)[0]
+
+print("JAPANESE FONT:", font_path)
 
 font_small = ImageFont.truetype(font_path, 32)
 font_medium = ImageFont.truetype(font_path, 48)
 font_large = ImageFont.truetype(font_path, 78)
 font_xlarge = ImageFont.truetype(font_path, 92)
-
 # =========================================
 # 4. Header
 # =========================================
