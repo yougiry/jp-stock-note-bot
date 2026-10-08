@@ -120,12 +120,13 @@ def check_auth(session):
             f"HTTP {response.status_code}"
         )
 
-
 def create_draft(session, title):
     response = session.post(
         NOTE_BASE + "/api/v1/text_notes",
         json={
             "name": title,
+            "body": "",
+            "status": "draft",
         },
         timeout=30,
     )
@@ -135,37 +136,32 @@ def create_draft(session, title):
         response.status_code,
     )
 
-    if response.status_code not in (
-        200,
-        201,
-    ):
+    if response.status_code not in (200, 201):
         fail(
             "Draft creation failed: "
-            + response.text[:500]
+            + response.text[:1000]
         )
 
     payload = response.json()
-
-    note = payload.get("data", payload)
+    data = payload.get("data", payload)
 
     note_id = (
-        note.get("id")
-        or note.get("note_id")
+        data.get("id")
+        or data.get("note_id")
     )
 
     key = (
-        note.get("key")
-        or note.get("note_key")
+        data.get("key")
+        or data.get("note_key")
     )
 
     if not note_id:
         fail(
             "note id was not returned: "
-            + response.text[:500]
+            + response.text[:1000]
         )
 
     return note_id, key
-
 
 def save_body(
     session,
