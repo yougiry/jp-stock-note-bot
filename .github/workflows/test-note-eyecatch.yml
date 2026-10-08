@@ -1,0 +1,28 @@
+name: Test note eyecatch
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-eyecatch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests Pillow
+
+      - name: Generate 1280x670 eyecatch
+        run: python article/create_eyecatch.py
+
+      - name: Upload eyecatch to note
+        env:
+          NOTE_COOKIE: ${{ secrets.NOTE_COOKIE }}
+        run: python note/test_eyecatch_upload.py
