@@ -1,0 +1,40 @@
+{
+  "prediction_id": "JP-20261009-060000-V511-TEST",
+  "cutoff": "2026-10-09T06:00:00+09:00",
+  "freeze_time": "2026-10-09T06:08:00+09:00",
+  "status": "VALID",
+  "source_audit": "PASS",
+  "critical_gate": "PASS",
+  "freeze_status": "PASS",
+  "coverage": 0.97,
+  "candidates": [
+    {
+      "rank": 1,
+      "code": "5932",
+      "name": "三協立山",
+      "decision": "買い候補",
+      "previous_close": 629,
+      "unit": 100,
+      "required_capital": 62900,
+      "surge_score": 92,
+      "limit_up_score": 89,
+      "entry_score": 88,
+      "risk": "中",
+      "reason": "材料・テーマ・需給を総合評価"
+    },
+    {
+      "rank": 2,
+      "code": "153A",
+      "name": "カウリス",
+      "decision": "監視",
+      "previous_close": 1250,
+      "unit": 100,
+      "required_capital": 125000,
+      "surge_score": 84,
+      "limit_up_score": 73,
+      "entry_score": 69,
+      "risk": "高",
+      "reason": "テーマモメンタムは強いが高値追いリスクあり"
+    }
+  ]
+}
