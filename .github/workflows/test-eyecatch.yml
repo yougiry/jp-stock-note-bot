@@ -1,0 +1,34 @@
+name: Test eyecatch generation
+
+on:
+  workflow_dispatch:
+
+jobs:
+  eyecatch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Pillow
+        run: pip install Pillow
+
+      - name: Generate eyecatch
+        run: python article/create_eyecatch.py
+
+      - name: Verify generated file
+        run: |
+          test -f output/eyecatch.png
+          file output/eyecatch.png
+
+      - name: Upload eyecatch artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: v511-eyecatch
+          path: output/eyecatch.png
