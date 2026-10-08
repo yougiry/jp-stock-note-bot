@@ -99,6 +99,17 @@ def collect_jpx_universe():
 
     print(
         "TOKYO STOCKS:",
+        if __name__ == "__main__":
+    stocks = collect_jpx_universe()
+
+    print("")
+    print("==============================")
+    print("JPX UNIVERSE TEST: SUCCESS")
+    print("==============================")
+    print("Stocks:", len(stocks))
+
+    for stock in stocks[:10]:
+        print(stock)
         len(stocks)
     )
 
