@@ -1,51 +1,35 @@
-name: v5.11 Morning Prediction
+name: v5.9 Note Publish
 
 on:
-  # 手動実行
   workflow_dispatch:
-
-  # JST 06:00 = UTC 21:00（前日）
-  schedule:
-    - cron: "0 21 * * 0-4"
 
 permissions:
   contents: write
 
 concurrency:
-  group: v511-morning-production
+  group: v59-note-publish
   cancel-in-progress: false
 
 jobs:
-  morning:
+  publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
 
     steps:
-      # ==========================================
-      # 1. Repository
-      # ==========================================
-
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      # ==========================================
-      # 2. Python
-      # ==========================================
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Install Python dependencies
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests Pillow pandas openpyxl xlrd beautifulsoup4
-      # ==========================================
-      # 3. Japanese fonts
-      # ==========================================
+          pip install requests Pillow
 
       - name: Install Japanese fonts
         run: |
@@ -53,78 +37,26 @@ jobs:
           sudo apt-get install -y fonts-noto-cjk
           fc-cache -f
 
-      # ==========================================
-
-      # 3.5 Run v5.11 Prediction
-
-      # ==========================================
-
-      - name: Run v5.11 Prediction
-
+      - name: Check v5.9 article
         run: |
-
-          python prediction/run_v511.py
-
-      # ==========================================
-      # 4. Resolve today's Prediction JSON
-      # ==========================================
-
-      - name: Resolve Prediction JSON
-        id: prediction
-        shell: bash
-        run: |
-          TODAY_JST=$(TZ=Asia/Tokyo date +%Y%m%d)
-
-          PREDICTION_FILE="data/prediction/v511_${TODAY_JST}.json"
-
-          echo "JST DATE: ${TODAY_JST}"
-          echo "PREDICTION FILE: ${PREDICTION_FILE}"
-
-          if [ ! -f "${PREDICTION_FILE}" ]; then
-            echo "Prediction JSON does not exist."
-            echo "Expected: ${PREDICTION_FILE}"
-            exit 1
-          fi
-
-          echo "prediction_file=${PREDICTION_FILE}" >> "$GITHUB_OUTPUT"
-
-      # ==========================================
-      # 4.5 Validate v5.11 Freeze
-      # ==========================================
-
-      - name: Validate Prediction Freeze
-        env:
-          PREDICTION_JSON: ${{ steps.prediction.outputs.prediction_file }}
-        run: |
-          python prediction/validate_freeze.py
-
-      # ==========================================
-      # 5. Generate eyecatch
-      # ==========================================
+          test -f data/prediction/v59_today.json
+          echo "v5.9 article found."
 
       - name: Generate eyecatch
         env:
-          PREDICTION_JSON: ${{ steps.prediction.outputs.prediction_file }}
+          PREDICTION_JSON: data/prediction/v59_today.json
         run: |
           python article/create_eyecatch.py
 
-      # ==========================================
-      # 6. Publish to note
-      # ==========================================
-
-      - name: Publish Morning Prediction
+      - name: Publish to note
         env:
           NOTE_COOKIE: ${{ secrets.NOTE_COOKIE }}
           DRY_RUN: "false"
-          PREDICTION_JSON: ${{ steps.prediction.outputs.prediction_file }}
+          PREDICTION_JSON: data/prediction/v59_today.json
         run: |
           python note/publish.py
 
-      # ==========================================
-      # 7. Persist publication marker
-      # ==========================================
-
-      - name: Persist publication marker
+      - name: Save publication marker
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -136,7 +68,7 @@ jobs:
             exit 0
           fi
 
-          git commit -m "Record morning Prediction publication"
+          git commit -m "Record v5.9 note publication"
 
           git pull --rebase origin "${GITHUB_REF_NAME}"
           git push origin "HEAD:${GITHUB_REF_NAME}"
