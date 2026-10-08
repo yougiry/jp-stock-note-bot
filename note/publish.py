@@ -13,14 +13,12 @@ from html import escape
 INPUT = Path(
     os.environ.get(
         "PREDICTION_JSON",
-        "data/prediction/sample_v511.json"
+        "data/prediction/v59_today.json"
     )
 )
 
 PUBLISHED_DIR = Path("data/published")
 EYECATCH = Path("output/eyecatch.png")
-
-MIN_COVERAGE = 0.90
 
 DRY_RUN = (
     os.environ.get("DRY_RUN", "true")
@@ -28,6 +26,7 @@ DRY_RUN = (
     .lower()
     in ("1", "true", "yes")
 )
+
 
 # ============================================================
 # Utility
@@ -52,83 +51,48 @@ def clean_cookie(value):
 
 
 # ============================================================
-# 1. Load frozen Prediction JSON
+# 1. Load v5.9 article JSON
 # ============================================================
 
 if not INPUT.exists():
-    fail(f"Prediction JSON not found: {INPUT}")
+    fail(f"v5.9 JSON not found: {INPUT}")
 
 with INPUT.open("r", encoding="utf-8") as f:
     data = json.load(f)
 
-print("PREDICTION JSON: LOADED")
+print("v5.9 JSON: LOADED")
 print("INPUT:", INPUT)
 
 
 # ============================================================
-# 2. Publication Gate
+# 2. Minimal v5.9 Input Check
 # ============================================================
-
-errors = []
-
-if data.get("status") != "VALID":
-    errors.append("Prediction status is not VALID")
-
-if data.get("source_audit") != "PASS":
-    errors.append("Source Audit is not PASS")
-
-if data.get("critical_gate") != "PASS":
-    errors.append("Critical Gate is not PASS")
-
-# Formal v5.11 supports explicit freeze_status.
-# During migration, missing field is reported separately below.
-freeze_status = data.get("freeze_status")
-
-if freeze_status is not None and freeze_status != "PASS":
-    errors.append("Freeze Status is not PASS")
-
-try:
-    coverage = float(data.get("coverage", 0))
-except (TypeError, ValueError):
-    coverage = 0
-    errors.append("Coverage is invalid")
-
-if coverage < MIN_COVERAGE:
-    errors.append(
-        f"Coverage below {MIN_COVERAGE * 100:.0f}%"
-    )
 
 prediction_id_raw = str(
     data.get("prediction_id", "")
 ).strip()
 
+title = str(
+    data.get("title", "")
+).strip()
+
+body = str(
+    data.get("article", "")
+).strip()
+
 if not prediction_id_raw:
-    errors.append("Prediction ID is missing")
+    fail("Prediction ID is missing")
 
-if not data.get("cutoff"):
-    errors.append("Prediction cutoff is missing")
+if not title:
+    fail("Article title is missing")
 
-if not data.get("freeze_time"):
-    errors.append("Freeze time is missing")
+if not body:
+    fail("Article body is missing")
 
-if not isinstance(data.get("candidates"), list):
-    errors.append("Candidates is not a list")
-
-if errors:
-    print("PUBLICATION GATE: FAILED")
-
-    for error in errors:
-        print("-", error)
-
-    raise SystemExit(1)
-
-print("PUBLICATION GATE: PASS")
-
-if freeze_status is None:
-    print(
-        "WARNING: freeze_status is missing "
-        "(migration mode)"
-    )
+print("v5.9 INPUT CHECK: PASS")
+print("PREDICTION ID:", prediction_id_raw)
+print("TITLE:", title)
+print("ARTICLE LENGTH:", len(body))
 
 
 # ============================================================
@@ -140,7 +104,6 @@ PUBLISHED_DIR.mkdir(
     exist_ok=True
 )
 
-# Filesystem-safe ID.
 safe_prediction_id = re.sub(
     r"[^A-Za-z0-9._-]",
     "_",
@@ -153,7 +116,6 @@ marker_file = (
 )
 
 print("DUPLICATE CHECK: START")
-print("Prediction ID:", prediction_id_raw)
 
 if marker_file.exists():
 
@@ -169,184 +131,34 @@ print("DUPLICATE CHECK: PASS")
 
 
 # ============================================================
-# 4. Article generation
+# 4. Hashtags
 # ============================================================
 
-prediction_id_html = escape(
-    prediction_id_raw
+hashtags = data.get(
+    "hashtags",
+    [
+        "#日本株",
+        "#日本株投資",
+        "#株式投資",
+        "#デイトレ",
+        "#短期投資",
+        "#株価予想",
+        "#注目銘柄",
+        "#急騰株",
+        "#ストップ高",
+        "#AI投資",
+    ]
 )
 
-cutoff_html = escape(
-    str(data["cutoff"])
-)
-
-freeze_time_html = escape(
-    str(data["freeze_time"])
-)
-
-coverage_percent = coverage * 100
-
-title = (
-    "日本株 翌営業日急騰候補｜"
-    f"{prediction_id_raw}"
-)
-
-parts = []
-
-parts.append(
-    "<h2>日本株 翌営業日 急騰候補</h2>"
-)
-
-parts.append(
-    "<p>"
-    "Prediction Engine v5.11による"
-    "翌営業日の候補です。"
-    "</p>"
-)
-
-parts.append(
-    "<h2>今回の予測情報</h2>"
-)
-
-parts.append(
-    "<p>"
-    f"Prediction ID：{prediction_id_html}<br>"
-    f"予測基準時刻：{cutoff_html}<br>"
-    f"データ確定時刻：{freeze_time_html}<br>"
-    f"Coverage：{coverage_percent:.1f}%"
-    "</p>"
-)
-
-parts.append(
-    "<h2>買い候補・監視銘柄</h2>"
-)
-
-for c in data.get("candidates", []):
-
-    rank = escape(
-        str(c.get("rank", ""))
-    )
-
-    code = escape(
-        str(c.get("code", ""))
-    )
-
-    name = escape(
-        str(c.get("name", ""))
-    )
-
-    decision = escape(
-        str(c.get("decision", ""))
-    )
-
-    risk = escape(
-        str(c.get("risk", ""))
-    )
-
-    reason = escape(
-        str(c.get("reason", ""))
-    )
-
-    previous_close = int(
-        c.get("previous_close", 0) or 0
-    )
-
-    required_capital = int(
-        c.get("required_capital", 0) or 0
-    )
-
-    surge = escape(
-        str(c.get("surge_score", "NA"))
-    )
-
-    limit_up = escape(
-        str(c.get("limit_up_score", "NA"))
-    )
-
-    entry = escape(
-        str(c.get("entry_score", "NA"))
-    )
-
-    parts.append(
-        f"<h3>{rank}位　{code} {name}</h3>"
-
-        f"<p>"
-        f"<strong>判定：{decision}</strong>"
-        f"</p>"
-
-        f"<p>"
-        f"前日終値：{previous_close:,}円<br>"
-        f"100株必要額：約{required_capital:,}円<br>"
-        f"急騰スコア：{surge}<br>"
-        f"ストップ高スコア：{limit_up}<br>"
-        f"寄付きエントリースコア：{entry}<br>"
-        f"リスク：{risk}"
-        f"</p>"
-
-        f"<p>{reason}</p>"
-    )
-
-
-parts.append(
-    "<h2>この予測の見方</h2>"
-)
-
-parts.append(
-    "<p>"
-    "「買い候補」は翌営業日の寄付きからの"
-    "値動きを重視しています。"
-    "「監視」は材料やテーマは強いものの、"
-    "高値追い・流動性・下落リスクなどから"
-    "慎重な判断が必要な銘柄です。"
-    "</p>"
-)
-
-parts.append(
-    "<h2>注意事項</h2>"
-)
-
-parts.append(
-    "<p>"
-    "本記事は公開情報を基にした"
-    "分析・検証を目的とするものであり、"
-    "特定銘柄の売買を推奨するものではありません。"
-    "株式投資には価格変動による"
-    "損失の可能性があります。"
-    "最終的な投資判断はご自身で行ってください。"
-    "</p>"
-)
-
-body = "\n".join(parts)
-
-print("ARTICLE GENERATION: PASS")
-
-
-# ============================================================
-# 5. Hashtags
-# ============================================================
+if not isinstance(hashtags, list):
+    fail("hashtags must be a list")
 
 hashtags = [
-    "#日本株",
-    "#株式投資",
-    "#急騰株",
-    "#ストップ高",
-    "#AI",
+    str(tag).strip()
+    for tag in hashtags
+    if str(tag).strip()
 ]
 
-for candidate in data.get(
-    "candidates",
-    []
-):
-    code = str(
-        candidate.get("code", "")
-    ).strip()
-
-    if code:
-        hashtags.append(
-            f"#{code}"
-        )
-
-# Preserve order / remove duplicates.
 hashtags = list(
     dict.fromkeys(hashtags)
 )
@@ -356,38 +168,45 @@ print(
     ", ".join(hashtags)
 )
 
+
 # ============================================================
-# 5.5 Pre-publication QA / DRY RUN
+# 5. Pre-publication QA
 # ============================================================
 
 if not EYECATCH.exists():
     fail(f"Eyecatch not found: {EYECATCH}")
 
-if not title.strip():
-    fail("Article title is empty")
-
-if not body.strip():
-    fail("Article body is empty")
-
-if prediction_id_raw not in body:
-    fail("Prediction ID missing from article")
+if len(body) < 100:
+    fail(
+        "Article body is too short. "
+        "v5.9の実際の記事本文を "
+        "v59_today.json の article に入れてください。"
+    )
 
 print("PRE-PUBLICATION QA: PASS")
+print("EYECATCH:", EYECATCH)
+
+
+# ============================================================
+# 5.5 DRY RUN
+# ============================================================
 
 if DRY_RUN:
     print("")
     print("==============================")
     print("DRY RUN: SUCCESS")
     print("==============================")
+
     print("Prediction ID:", prediction_id_raw)
     print("Title:", title)
-    print("Coverage:", f"{coverage_percent:.1f}%")
-    print("Candidates:", len(data.get("candidates", [])))
+    print("Article Length:", len(body))
     print("Hashtags:", ", ".join(hashtags))
     print("Eyecatch:", EYECATCH)
+
     print("")
     print("NOTE API WAS NOT CALLED")
     print("ARTICLE WAS NOT PUBLISHED")
+
     raise SystemExit(0)
 
 
@@ -461,6 +280,9 @@ print("AUTHENTICATION: PASS")
 
 # ============================================================
 # 8. Create new draft
+#
+# IMPORTANT:
+# この部分は今日成功した旧publish.pyと同じ。
 # ============================================================
 
 create_payload = {
@@ -519,6 +341,9 @@ print("NOTE KEY:", note_key)
 
 # ============================================================
 # 9. Save article body
+#
+# IMPORTANT:
+# 成功版を維持。
 # ============================================================
 
 save_payload = {
@@ -559,6 +384,9 @@ print("BODY SAVE: PASS")
 
 # ============================================================
 # 10. Upload eyecatch
+#
+# IMPORTANT:
+# 成功版を維持。
 # ============================================================
 
 if not EYECATCH.exists():
@@ -566,7 +394,6 @@ if not EYECATCH.exists():
         f"Eyecatch not found: {EYECATCH}"
     )
 
-# Remove JSON content-type for multipart.
 multipart_headers = {
     k: v
     for k, v in session.headers.items()
@@ -636,11 +463,6 @@ if not hashtags:
         "Hashtags are empty"
     )
 
-if prediction_id_raw not in body:
-    qa_errors.append(
-        "Prediction ID missing from article"
-    )
-
 if qa_errors:
 
     print("ARTICLE QA: FAILED")
@@ -655,6 +477,9 @@ print("ARTICLE QA: PASS")
 
 # ============================================================
 # 12. Publish
+#
+# IMPORTANT:
+# 今日成功した旧publish.pyのpayloadを維持。
 # ============================================================
 
 publish_payload = {
@@ -719,8 +544,6 @@ publish_payload = {
 
     "pro_coupon_keys": [],
 
-    # Avoid notifying followers during
-    # initial production verification.
     "send_notifications_flag":
         False,
 
@@ -800,13 +623,6 @@ print("PUBLIC VERIFY: PASS")
 # 14. Publication Marker
 # ============================================================
 
-# IMPORTANT:
-# Marker is created only AFTER:
-#
-# publish PASS
-# AND
-# public verification PASS
-
 marker_data = {
     "prediction_id":
         prediction_id_raw,
@@ -820,14 +636,14 @@ marker_data = {
     "status":
         "PUBLISHED",
 
-    "cutoff":
-        data.get("cutoff"),
+    "engine":
+        data.get(
+            "engine",
+            "Prediction Engine v5.9"
+        ),
 
-    "freeze_time":
-        data.get("freeze_time"),
-
-    "coverage":
-        coverage,
+    "target_date":
+        data.get("target_date"),
 }
 
 marker_file.write_text(
@@ -855,7 +671,7 @@ print(
 
 print("")
 print("==============================")
-print("v5.11 → note PUBLISH: SUCCESS")
+print("v5.9 → note PUBLISH: SUCCESS")
 print("==============================")
 
 print(
