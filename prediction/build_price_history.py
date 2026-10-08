@@ -19,7 +19,7 @@ BASE_URL = "https://api.jquants.com/v2"
 # J-Quants Free coverage confirmed through 2026-07-16.
 END_DATE = date(2026, 7, 16)
 
-TARGET_TRADING_DAYS = 60
+TARGET_TRADING_DAYS = 61
 
 # Limit requests per single GitHub Actions run.
 MAX_REQUESTS_PER_RUN = 5
