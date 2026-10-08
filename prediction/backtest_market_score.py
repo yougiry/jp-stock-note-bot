@@ -197,10 +197,9 @@ def risk_score(f):
             score -= 5
 
     return clamp(score, 0, 20)
-
 def load_history():
 
-    history = {}
+    payloads_by_date = {}
 
     files = sorted(
         RAW_DIR.glob("????-??-??.json")
@@ -214,38 +213,9 @@ def load_history():
             )
         )
 
-        # J-Quants historical cache format
-        if isinstance(payload, dict):
-            rows = payload.get("rows", [])
-        else:
-            rows = payload
+        payloads_by_date[path.stem] = payload
 
-        day = {}
-
-        for row in rows:
-
-            code = normalize_code(
-                row.get("Code")
-            )
-
-            if not code:
-                continue
-
-            day[code] = {
-                "open": num(row.get("O")),
-                "high": num(row.get("H")),
-                "low": num(row.get("L")),
-                "close": num(row.get("C")),
-                "volume": num(row.get("Vo")),
-                "value": num(row.get("Va")),
-                "market_cap": num(row.get("MktCap")),
-            }
-
-        if day:
-            history[path.stem] = day
-
-    return history
-
+    return payloads_by_date
 def build_features(rows):
     current = rows[-1]
 
