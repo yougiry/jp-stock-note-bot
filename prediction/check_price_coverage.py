@@ -22,11 +22,29 @@ def fail(message):
 
 
 def normalize_code(value):
-    code = str(value).strip()
+    """
+    Normalize JPX/J-Quants security codes
+    to JPX 4-character format.
 
-    # Excel由来の 7203.0 対策
+    Examples:
+        72030 -> 7203
+        13010 -> 1301
+        130A0 -> 130A
+        7203  -> 7203
+        130A  -> 130A
+    """
+
+    code = str(value).strip().upper()
+
+    # Excel numeric representation
     if code.endswith(".0"):
         code = code[:-2]
+
+    # J-Quants v2 uses 5-character codes.
+    # Final character is removed for comparison
+    # with JPX 4-character security codes.
+    if len(code) == 5:
+        code = code[:4]
 
     return code
 
