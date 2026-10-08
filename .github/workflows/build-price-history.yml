@@ -13,7 +13,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
       - name: Checkout repository
@@ -28,8 +28,16 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests
-          
+          python -m pip install --upgrade pip
+          pip install requests pandas openpyxl xlrd beautifulsoup4
+
+      - name: Python syntax check
+        run: |
+          python -m py_compile prediction/build_price_history.py
+          python -m py_compile prediction/calculate_price_factors.py
+          python -m py_compile prediction/build_universe_features.py
+          python -m py_compile prediction/collect_universe.py
+
       - name: Build price history
         env:
           JQUANTS_API_KEY: ${{ secrets.JQUANTS_API_KEY }}
@@ -40,15 +48,9 @@ jobs:
         run: |
           python prediction/calculate_price_factors.py
 
-      - name: Install JPX universe dependencies
-        run: |
-          pip install pandas openpyxl xlrd beautifulsoup4
-
       - name: Build v5.11 universe features
         run: |
           python prediction/build_universe_features.py
-
-      - name: Persist price history
 
       - name: Persist price history
         run: |
