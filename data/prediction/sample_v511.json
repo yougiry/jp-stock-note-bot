@@ -5,6 +5,7 @@
   "status": "VALID",
   "source_audit": "PASS",
   "critical_gate": "PASS",
+  "freeze_status": "PASS",
   "coverage": 0.97,
   "candidates": [
     {
