@@ -39,7 +39,8 @@ jobs:
           python -m py_compile prediction/build_universe_features.py
           python -m py_compile prediction/collect_universe.py
           python -m py_compile prediction/rank_market_candidates.py
-
+          python -m py_compile prediction/backtest_market_score.py
+          
       - name: Build price history
         env:
           JQUANTS_API_KEY: ${{ secrets.JQUANTS_API_KEY }}
@@ -61,7 +62,11 @@ jobs:
       - name: Rank v5.11 market candidates
         run: |
           python prediction/rank_market_candidates.py
-
+          
+      - name: Backtest v5.11 market score
+        run: |
+          python prediction/backtest_market_score.py
+          
       - name: Persist price history
         run: |
           git config user.name "github-actions[bot]"
