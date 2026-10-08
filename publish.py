@@ -22,6 +22,12 @@ EYECATCH = Path("output/eyecatch.png")
 
 MIN_COVERAGE = 0.90
 
+DRY_RUN = (
+    os.environ.get("DRY_RUN", "true")
+    .strip()
+    .lower()
+    in ("1", "true", "yes")
+)
 
 # ============================================================
 # Utility
@@ -349,6 +355,40 @@ print(
     "HASHTAGS:",
     ", ".join(hashtags)
 )
+
+# ============================================================
+# 5.5 Pre-publication QA / DRY RUN
+# ============================================================
+
+if not EYECATCH.exists():
+    fail(f"Eyecatch not found: {EYECATCH}")
+
+if not title.strip():
+    fail("Article title is empty")
+
+if not body.strip():
+    fail("Article body is empty")
+
+if prediction_id_raw not in body:
+    fail("Prediction ID missing from article")
+
+print("PRE-PUBLICATION QA: PASS")
+
+if DRY_RUN:
+    print("")
+    print("==============================")
+    print("DRY RUN: SUCCESS")
+    print("==============================")
+    print("Prediction ID:", prediction_id_raw)
+    print("Title:", title)
+    print("Coverage:", f"{coverage_percent:.1f}%")
+    print("Candidates:", len(data.get("candidates", [])))
+    print("Hashtags:", ", ".join(hashtags))
+    print("Eyecatch:", EYECATCH)
+    print("")
+    print("NOTE API WAS NOT CALLED")
+    print("ARTICLE WAS NOT PUBLISHED")
+    raise SystemExit(0)
 
 
 # ============================================================
