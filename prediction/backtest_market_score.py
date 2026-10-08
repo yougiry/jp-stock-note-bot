@@ -194,37 +194,53 @@ def risk_score(f):
 
     return clamp(score, 0, 20)
 
-
 def load_history():
+
     history = {}
 
-    for path in sorted(RAW_DIR.glob("????-??-??.json")):
-        payload = json.loads(path.read_text(encoding="utf-8"))
+    files = sorted(
+        RAW_DIR.glob("????-??-??.json")
+    )
 
-            rows = payload.get("rows", []) if isinstance(payload, dict) else payload
+    for path in files:
+
+        payload = json.loads(
+            path.read_text(
+                encoding="utf-8"
+            )
+        )
+
+        # J-Quants historical cache format
+        if isinstance(payload, dict):
+            rows = payload.get("rows", [])
+        else:
+            rows = payload
+
         day = {}
 
-        for r in rows:
-            code = normalize_code(r.get("Code"))
+        for row in rows:
+
+            code = normalize_code(
+                row.get("Code")
+            )
 
             if not code:
                 continue
 
             day[code] = {
-                "open": num(r.get("O")),
-                "high": num(r.get("H")),
-                "low": num(r.get("L")),
-                "close": num(r.get("C")),
-                "volume": num(r.get("Vo")),
-                "value": num(r.get("Va")),
-                "market_cap": num(r.get("MktCap")),
+                "open": num(row.get("O")),
+                "high": num(row.get("H")),
+                "low": num(row.get("L")),
+                "close": num(row.get("C")),
+                "volume": num(row.get("Vo")),
+                "value": num(row.get("Va")),
+                "market_cap": num(row.get("MktCap")),
             }
 
         if day:
             history[path.stem] = day
 
     return history
-
 
 def build_features(rows):
     current = rows[-1]
