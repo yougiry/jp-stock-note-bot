@@ -30,7 +30,14 @@ jobs:
           JQUANTS_API_KEY: ${{ secrets.JQUANTS_API_KEY }}
         run: |
           python prediction/collect_jquants_history.py
+          
+      - name: Install coverage dependencies
+        run: |
+          pip install pandas openpyxl xlrd beautifulsoup4
 
+      - name: Check JPX price coverage
+        run: |
+          python prediction/check_price_coverage.py
       - name: Show downloaded files
         run: |
           find data/market/jquants \
