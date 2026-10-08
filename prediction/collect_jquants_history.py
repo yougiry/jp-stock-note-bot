@@ -106,6 +106,10 @@ def fetch_day(day, headers):
     # Depending on subscription/data availability,
     # unavailable dates may not return usable data.
     if response.status_code != 200:
+         log(
+            "RESPONSE:",
+            response.text[:1000],
+        )
         return None
 
     try:
