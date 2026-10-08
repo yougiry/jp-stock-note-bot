@@ -37,6 +37,7 @@ jobs:
           python -m py_compile prediction/calculate_price_factors.py
           python -m py_compile prediction/build_universe_features.py
           python -m py_compile prediction/collect_universe.py
+                    python -m py_compile prediction/rank_market_candidates.py
 
       - name: Build price history
         env:
