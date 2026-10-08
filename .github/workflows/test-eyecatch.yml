@@ -18,7 +18,13 @@ jobs:
 
       - name: Install Pillow
         run: pip install Pillow
-        
+
+      - name: Install Japanese fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-noto-cjk
+          fc-cache -f -v
+
       - name: Diagnose Japanese fonts
         run: |
           echo "===== OS ====="
@@ -35,7 +41,7 @@ jobs:
 
           echo "===== ALL FONT DIRECTORIES ====="
           find /usr/share/fonts -maxdepth 4 -type f | head -100
-          
+
       - name: Generate eyecatch
         run: python article/create_eyecatch.py
 
