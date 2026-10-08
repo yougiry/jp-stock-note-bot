@@ -324,10 +324,15 @@ print("ARTICLE GENERATION: PASS")
 
 hashtags = [
     "#日本株",
+    "#日本株投資",
     "#株式投資",
+    "#デイトレ",
+    "#短期投資",
+    "#株価予想",
+    "#注目銘柄",
     "#急騰株",
     "#ストップ高",
-    "#AI",
+    "#AI投資",
 ]
 
 for candidate in data.get(
