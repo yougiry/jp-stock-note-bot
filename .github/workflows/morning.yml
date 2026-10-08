@@ -1,4 +1,4 @@
-name: v5.9 Note Publish
+name: v5.9 Prediction to note
 
 on:
   workflow_dispatch:
@@ -6,69 +6,58 @@ on:
 permissions:
   contents: write
 
-concurrency:
-  group: v59-note-publish
-  cancel-in-progress: false
-
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Set up Python
+      - name: Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Install dependencies
+      - name: Install
         run: |
-          python -m pip install --upgrade pip
           pip install requests Pillow
-
-      - name: Install Japanese fonts
-        run: |
           sudo apt-get update
           sudo apt-get install -y fonts-noto-cjk
-          fc-cache -f
 
-      - name: Check v5.9 article
+      # 既存のv5.9本体を実行
+      - name: Run Prediction Engine v5.9
         run: |
-          test -f data/prediction/v59_today.json
-          echo "v5.9 article found."
+          python prediction/v59.py
 
-      - name: Generate eyecatch
-        env:
-          PREDICTION_JSON: data/prediction/v59_today.json
+      # v5.9結果をそのまま記事化
+      - name: Create note article
+        run: |
+          python article/create_article.py
+
+      - name: Create eyecatch
         run: |
           python article/create_eyecatch.py
 
       - name: Publish to note
         env:
           NOTE_COOKIE: ${{ secrets.NOTE_COOKIE }}
-          DRY_RUN: "false"
-          PREDICTION_JSON: data/prediction/v59_today.json
         run: |
           python note/publish.py
 
       - name: Save publication marker
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add data/published/
 
           if git diff --cached --quiet; then
-            echo "No new publication marker."
             exit 0
           fi
 
           git commit -m "Record v5.9 note publication"
-
           git pull --rebase origin "${GITHUB_REF_NAME}"
           git push origin "HEAD:${GITHUB_REF_NAME}"
