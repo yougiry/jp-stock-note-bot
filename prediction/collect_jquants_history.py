@@ -89,28 +89,37 @@ def fetch_day(day, headers):
         "HTTP:",
         response.status_code,
     )
+if response.status_code == 429:
+    fail(
+        "J-Quants rate limit reached",
+        4,
+    )
 
-    if response.status_code == 429:
-        fail(
-            "J-Quants rate limit reached",
-            4,
-        )
+if response.status_code in (401, 403):
+    fail(
+        "J-Quants authentication/"
+        "permission error",
+        6,
+    )
 
-    if response.status_code in (401, 403):
-        fail(
-            "J-Quants authentication/"
-            "permission error",
-            6,
-        )
+if response.status_code == 400:
+    log(
+        "BAD REQUEST RESPONSE:",
+        response.text[:1000],
+    )
+    fail(
+        "J-Quants returned HTTP 400. "
+        "Stopping bootstrap to avoid "
+        "repeated invalid requests.",
+        5,
+    )
 
-    # Depending on subscription/data availability,
-    # unavailable dates may not return usable data.
-    if response.status_code != 200:
-         log(
-            "RESPONSE:",
-            response.text[:1000],
-        )
-        return None
+if response.status_code != 200:
+    log(
+        "RESPONSE:",
+        response.text[:1000],
+    )
+    return None
 
     try:
         payload = response.json()
