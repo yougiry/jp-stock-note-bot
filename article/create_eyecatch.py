@@ -44,34 +44,56 @@ img = Image.new(
 )
 
 draw = ImageDraw.Draw(img)
+
 # =========================================
 # 3. Fonts
 # =========================================
 
-font_candidates = [
-    "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
-    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-]
+import subprocess
 
-font_path = None
 
-for candidate in font_candidates:
-    if Path(candidate).exists():
-        font_path = candidate
-        break
+def find_japanese_font():
+    """
+    fontconfig に日本語対応フォントを問い合わせ、
+    実際にインストールされているフォントファイルを取得する。
+    """
 
-if not font_path:
+    commands = [
+        ["fc-match", "-f", "%{file}", "Noto Sans CJK JP"],
+        ["fc-match", "-f", "%{file}", "Noto Sans JP"],
+        ["fc-match", "-f", "%{file}", ":lang=ja"],
+    ]
+
+    for command in commands:
+        try:
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+
+            path = result.stdout.strip()
+
+            if path and Path(path).exists():
+                print("FONT DETECTED:", path)
+                return path
+
+        except Exception as e:
+            print("FONT SEARCH FAILED:", command, e)
+
     raise RuntimeError(
-        "Japanese Noto CJK font not found. "
-        "Install fonts-noto-cjk before generating eyecatch."
+        "Japanese font could not be detected by fontconfig"
     )
 
-print("FONT:", font_path)
+
+font_path = find_japanese_font()
 
 font_small = ImageFont.truetype(font_path, 32)
 font_medium = ImageFont.truetype(font_path, 48)
 font_large = ImageFont.truetype(font_path, 78)
 font_xlarge = ImageFont.truetype(font_path, 92)
+
 # =========================================
 # 4. Header
 # =========================================
