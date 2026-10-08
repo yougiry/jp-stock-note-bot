@@ -156,6 +156,59 @@ session = requests.Session()
 session.headers.update(headers)
 
 # =========================================
+# 4.5 Duplicate protection
+# =========================================
+
+print("DUPLICATE CHECK: START")
+
+duplicate_found = False
+
+# noteの自分の記事一覧を取得
+check_url = "https://note.com/api/v2/creators/contents"
+
+try:
+    response = session.get(
+        check_url,
+        params={
+            "kind": "note",
+            "page": 1
+        },
+        timeout=30,
+    )
+
+    print("DUPLICATE CHECK STATUS:", response.status_code)
+
+    if response.status_code == 200:
+        response_text = response.text
+
+        if prediction_id in response_text:
+            duplicate_found = True
+
+    else:
+        # 重複確認そのものに失敗した場合も
+        # 安全側に倒して投稿しない
+        print("DUPLICATE CHECK: API ERROR")
+        raise SystemExit(1)
+
+except requests.RequestException as e:
+    print("DUPLICATE CHECK: CONNECTION ERROR")
+    print(type(e).__name__)
+    raise SystemExit(1)
+
+if duplicate_found:
+    print("==============================")
+    print("DUPLICATE DETECTED")
+    print("Prediction ID:", prediction_id)
+    print("新規下書き作成を中止します")
+    print("==============================")
+
+    # エラーにはしない
+    # 「正常に重複を防止した」として終了
+    raise SystemExit(0)
+
+print("DUPLICATE CHECK: PASS")
+
+# =========================================
 # 5. Create draft
 # =========================================
 
