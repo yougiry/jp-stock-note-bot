@@ -1,10 +1,17 @@
 import json
+import os
 from pathlib import Path
 from datetime import datetime
 
 from PIL import Image, ImageDraw, ImageFont
 
-INPUT = Path("data/prediction/sample_v511.json")
+INPUT = Path(
+    os.environ.get(
+        "PREDICTION_JSON",
+        "data/prediction/sample_v511.json"
+    )
+)
+
 OUTPUT = Path("output/eyecatch.png")
 
 WIDTH = 1280
