@@ -42,8 +42,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests Pillow
-
+          pip install requests Pillow pandas openpyxl xlrd
       # ==========================================
       # 3. Japanese fonts
       # ==========================================
