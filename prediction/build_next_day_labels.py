@@ -57,10 +57,10 @@ def load_history():
         )
 
         # Support either raw list or {"data": [...]}
-        if isinstance(payload, dict):
-            rows = payload.get("data", [])
-        else:
-            rows = payload
+            if isinstance(payload, dict):
+                rows = payload.get("rows", [])
+            else:
+                rows = payload
 
         date_map = {}
 
