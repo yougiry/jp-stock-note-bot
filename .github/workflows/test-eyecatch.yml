@@ -18,7 +18,24 @@ jobs:
 
       - name: Install Pillow
         run: pip install Pillow
+        
+      - name: Diagnose Japanese fonts
+        run: |
+          echo "===== OS ====="
+          cat /etc/os-release
 
+          echo "===== PACKAGE ====="
+          dpkg -l | grep -E "fonts-noto|noto" || true
+
+          echo "===== FONTCONFIG JAPANESE ====="
+          fc-list :lang=ja family file | head -50 || true
+
+          echo "===== NOTO FILES ====="
+          find /usr/share/fonts -type f | grep -i noto | head -100 || true
+
+          echo "===== ALL FONT DIRECTORIES ====="
+          find /usr/share/fonts -maxdepth 4 -type f | head -100
+          
       - name: Generate eyecatch
         run: python article/create_eyecatch.py
 
