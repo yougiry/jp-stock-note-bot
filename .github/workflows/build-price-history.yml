@@ -40,6 +40,16 @@ jobs:
         run: |
           python prediction/calculate_price_factors.py
 
+      - name: Install JPX universe dependencies
+        run: |
+          pip install pandas openpyxl xlrd beautifulsoup4
+
+      - name: Build v5.11 universe features
+        run: |
+          python prediction/build_universe_features.py
+
+      - name: Persist price history
+
       - name: Persist price history
         run: |
           git config user.name "github-actions[bot]"
