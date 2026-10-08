@@ -279,7 +279,19 @@ def consecutive_up_days(rows):
             break
 
     return count
+    
+def complete_mean(values, required_count):
 
+    if len(values) < required_count:
+        return None
+
+    if any(
+        value is None
+        for value in values
+    ):
+        return None
+
+    return statistics.mean(values)
 
 def calculate_stock(
     code,
@@ -301,26 +313,37 @@ def calculate_stock(
     # from baseline averages.
     previous = rows[:-1]
 
-    volume_5_base = safe_mean([
+volume_5_base = complete_mean(
+    [
         r["adj_volume"]
         for r in previous[-5:]
-    ])
+    ],
+    5,
+)
 
-    volume_20_base = safe_mean([
+volume_20_base = complete_mean(
+    [
         r["adj_volume"]
         for r in previous[-20:]
-    ])
+    ],
+    20,
+)
 
-    value_5_base = safe_mean([
+value_5_base = complete_mean(
+    [
         r["trading_value"]
         for r in previous[-5:]
-    ])
+    ],
+    5,
+)
 
-    value_20_base = safe_mean([
+value_20_base = complete_mean(
+    [
         r["trading_value"]
         for r in previous[-20:]
-    ])
-
+    ],
+    20,
+)
     gap = None
 
     if len(rows) >= 2:
