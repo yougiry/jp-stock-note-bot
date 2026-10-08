@@ -1,17 +1,16 @@
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+from collect_universe import collect_jpx_universe
+
+
+JST = ZoneInfo("Asia/Tokyo")
+
+
 def collect_market_data(
     target_date,
     execution_time,
 ):
-    """
-    v5.11 Market Data Collector
-
-    IMPORTANT:
-    - Future data must never be used.
-    - Every source must have publication/retrieval timestamps.
-    - X/SNS is Discovery-only.
-    - Missing data must remain NA.
-    - Post-cutoff data must not enter Prediction dataset.
-    """
 
     print(
         "Target date:",
@@ -24,9 +23,73 @@ def collect_market_data(
     )
 
     # ==========================================
-    # Production collectors will be connected
-    # here in the following STEP.
+    # JPX Universe
     # ==========================================
+
+    retrieval_time = datetime.now(JST)
+
+    try:
+        stocks = collect_jpx_universe()
+
+    except Exception as e:
+
+        print(
+            "JPX UNIVERSE FAILED:",
+            repr(e)
+        )
+
+        return None
+
+    if not stocks:
+
+        print(
+            "JPX UNIVERSE EMPTY"
+        )
+
+        return None
+
+    # ==========================================
+    # Source Audit
+    # ==========================================
+
+    sources = [{
+        "source_id":
+            "JPX_LISTED_COMPANIES",
+
+        "source_type":
+            "primary",
+
+        "source_tier":
+            "JPX",
+
+        "purpose":
+            "universe",
+
+        "url":
+            (
+                "https://www.jpx.co.jp/"
+                "markets/statistics-equities/"
+                "misc/01.html"
+            ),
+
+        "publication_timestamp":
+            None,
+
+        "retrieval_timestamp":
+            retrieval_time.isoformat(),
+
+        "prediction_cutoff":
+            execution_time.isoformat(),
+
+        "scoring_eligible":
+            False,
+
+        "factor_owner":
+            "Universe",
+
+        "snapshot_quality":
+            "PRIMARY_SOURCE",
+    }]
 
     dataset = {
         "target_date":
@@ -35,24 +98,24 @@ def collect_market_data(
         "execution_time":
             execution_time.isoformat(),
 
-        "stocks": [],
+        "stocks":
+            stocks,
 
-        "sources": [],
+        "sources":
+            sources,
 
+        # これはまだ価格データCoverageではない。
         "coverage":
             0.0,
     }
 
-    # ------------------------------------------
-    # Critical safety gate
-    # ------------------------------------------
+    print(
+        "MARKET DATA COLLECTION: PASS"
+    )
 
-    if not dataset["stocks"]:
-        print(
-            "COLLECTOR: "
-            "NO USABLE STOCK DATA"
-        )
-
-        return None
+    print(
+        "UNIVERSE:",
+        len(stocks)
+    )
 
     return dataset
