@@ -201,8 +201,7 @@ def load_history():
     for path in sorted(RAW_DIR.glob("????-??-??.json")):
         payload = json.loads(path.read_text(encoding="utf-8"))
 
-        rows = payload.get("data", []) if isinstance(payload, dict) else payload
-
+            rows = payload.get("rows", []) if isinstance(payload, dict) else payload
         day = {}
 
         for r in rows:
