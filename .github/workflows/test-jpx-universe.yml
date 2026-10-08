@@ -18,8 +18,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests pandas openpyxl xlrd
-
+          pip install requests pandas openpyxl xlrd beautifulsoup4
+    
       - name: Test JPX Universe
         run: |
           python prediction/collect_universe.py
