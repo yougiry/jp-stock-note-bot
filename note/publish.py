@@ -124,11 +124,8 @@ if errors:
 
 print("PUBLICATION GATE: PASS")
 
-if freeze_status is None:
-    print(
-        "WARNING: freeze_status is missing "
-        "(migration mode)"
-    )
+if data.get("freeze_status") != "PASS":
+    errors.append("Freeze Status is not PASS")
 
 
 # ============================================================
