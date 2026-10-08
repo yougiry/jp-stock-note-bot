@@ -1,0 +1,25 @@
+name: Test note publish
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install requests
+        run: pip install requests
+
+      - name: Publish test article
+        env:
+          NOTE_COOKIE: ${{ secrets.NOTE_COOKIE }}
+        run: python note/test_publish.py
