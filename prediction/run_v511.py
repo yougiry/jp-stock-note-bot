@@ -111,7 +111,7 @@ def main():
 
     # ------------------------------------------
     # STEP 1
-    # Market / Web data collection
+    # Base data collection
     # ------------------------------------------
 
     print("")
@@ -120,12 +120,31 @@ def main():
     market_data = collect_market_data(
         target_date=target_date,
         execution_time=execution_time,
+        prediction_cutoff=prediction_cutoff,
     )
 
     if not market_data:
         fail(
             "Market data collection returned "
             "no usable dataset"
+        )
+
+    # ------------------------------------------
+    # Cutoff consistency check
+    # ------------------------------------------
+
+    collected_cutoff = market_data.get(
+        "prediction_cutoff"
+    )
+
+    expected_cutoff = (
+        prediction_cutoff.isoformat()
+    )
+
+    if collected_cutoff != expected_cutoff:
+        fail(
+            "Prediction cutoff mismatch between "
+            "runner and collector"
         )
 
     # ------------------------------------------
@@ -211,6 +230,18 @@ def main():
         "FROZEN"
     )
 
+    frozen["collection_mode"] = (
+        market_data.get(
+            "collection_mode"
+        )
+    )
+
+    frozen["live_market_data_status"] = (
+        market_data.get(
+            "live_market_data_status"
+        )
+    )
+
     # ------------------------------------------
     # Save
     # ------------------------------------------
@@ -262,6 +293,18 @@ def main():
     print(
         "Calendar status:",
         frozen.get("calendar_status"),
+    )
+
+    print(
+        "Collection mode:",
+        frozen.get("collection_mode"),
+    )
+
+    print(
+        "Live market data:",
+        frozen.get(
+            "live_market_data_status"
+        ),
     )
 
     print(
