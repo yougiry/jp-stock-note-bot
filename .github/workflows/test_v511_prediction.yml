@@ -1,0 +1,43 @@
+name: Test v5.11 Prediction
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-v511-prediction:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Show execution environment
+        run: |
+          echo "UTC:"
+          date
+          echo ""
+          echo "JST:"
+          TZ=Asia/Tokyo date
+
+      - name: Show prediction files
+        run: |
+          echo "prediction/"
+          ls -la prediction || true
+          echo ""
+          echo "data/universe/"
+          ls -la data/universe || true
+
+      - name: Run Prediction Engine v5.11
+        env:
+          PYTHONUNBUFFERED: "1"
+          TZ: Asia/Tokyo
+        run: |
+          python prediction/run_v511.py
