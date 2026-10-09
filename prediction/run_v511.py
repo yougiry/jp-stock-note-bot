@@ -1,6 +1,6 @@
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, time, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -14,6 +14,9 @@ JST = ZoneInfo("Asia/Tokyo")
 
 OUTPUT_DIR = Path("data/prediction")
 
+PREDICTION_CUTOFF_HOUR = 6
+PREDICTION_CUTOFF_MINUTE = 0
+
 
 def fail(message):
     print("")
@@ -24,10 +27,71 @@ def fail(message):
     sys.exit(1)
 
 
+def get_prediction_cutoff(now):
+    """
+    Return the official Prediction Cutoff.
+
+    v5.11 morning prediction is frozen at 06:00 JST.
+
+    If execution occurs before 06:00 JST, the run must stop.
+    Information obtained after 06:00 JST must never flow back
+    into the Prediction.
+    """
+
+    cutoff = datetime.combine(
+        now.date(),
+        time(
+            PREDICTION_CUTOFF_HOUR,
+            PREDICTION_CUTOFF_MINUTE,
+        ),
+        tzinfo=JST,
+    )
+
+    if now < cutoff:
+        fail(
+            "Execution occurred before the "
+            "06:00 JST Prediction Cutoff"
+        )
+
+    return cutoff
+
+
+def get_next_weekday(base_date):
+    """
+    Return the next weekday after base_date.
+
+    IMPORTANT:
+    This is only a temporary business-day resolver.
+
+    It excludes Saturday and Sunday but does not yet
+    exclude Japanese market holidays or special JPX
+    non-trading days.
+
+    A proper JPX trading calendar will replace this
+    function in the next implementation step.
+    """
+
+    candidate = base_date + timedelta(days=1)
+
+    while candidate.weekday() >= 5:
+        candidate += timedelta(days=1)
+
+    return candidate
+
+
 def main():
 
-    now = datetime.now(JST)
-    target_date = now.strftime("%Y%m%d")
+    execution_time = datetime.now(JST)
+
+    prediction_cutoff = get_prediction_cutoff(
+        execution_time
+    )
+
+    target_day = get_next_weekday(
+        prediction_cutoff.date()
+    )
+
+    target_date = target_day.strftime("%Y%m%d")
 
     print("")
     print("==============================")
@@ -36,17 +100,27 @@ def main():
 
     print(
         "Execution time:",
-        now.isoformat()
+        execution_time.isoformat(),
+    )
+
+    print(
+        "Prediction cutoff:",
+        prediction_cutoff.isoformat(),
     )
 
     print(
         "Target date:",
-        target_date
+        target_date,
+    )
+
+    print(
+        "Calendar status:",
+        "WEEKDAY_ONLY",
     )
 
     # ------------------------------------------
     # STEP 1
-    # Market data collection
+    # Market / Web data collection
     # ------------------------------------------
 
     print("")
@@ -54,7 +128,7 @@ def main():
 
     market_data = collect_market_data(
         target_date=target_date,
-        execution_time=now,
+        execution_time=execution_time,
     )
 
     if not market_data:
@@ -73,8 +147,13 @@ def main():
 
     audit = run_source_audit(
         market_data=market_data,
-        prediction_cutoff=now,
+        prediction_cutoff=prediction_cutoff,
     )
+
+    if not audit:
+        fail(
+            "Source Audit returned no result"
+        )
 
     if audit.get("status") != "PASS":
         fail(
@@ -92,7 +171,7 @@ def main():
     result = run_scoring(
         market_data=market_data,
         audit=audit,
-        prediction_cutoff=now,
+        prediction_cutoff=prediction_cutoff,
     )
 
     if not result:
@@ -111,7 +190,7 @@ def main():
     frozen = create_freeze(
         result=result,
         audit=audit,
-        prediction_cutoff=now,
+        prediction_cutoff=prediction_cutoff,
     )
 
     if not frozen:
@@ -119,7 +198,25 @@ def main():
             "Freeze generation failed"
         )
 
+    # ------------------------------------------
+    # Prediction metadata
+    # ------------------------------------------
+
     frozen["target_date"] = target_date
+    frozen["execution_time"] = (
+        execution_time.isoformat()
+    )
+    frozen["prediction_cutoff"] = (
+        prediction_cutoff.isoformat()
+    )
+
+    frozen["calendar_status"] = (
+        "WEEKDAY_ONLY"
+    )
+
+    frozen["prediction_status"] = (
+        "FROZEN"
+    )
 
     # ------------------------------------------
     # Save
@@ -127,12 +224,12 @@ def main():
 
     OUTPUT_DIR.mkdir(
         parents=True,
-        exist_ok=True
+        exist_ok=True,
     )
 
     output = (
-        OUTPUT_DIR /
-        f"v511_{target_date}.json"
+        OUTPUT_DIR
+        / f"v511_{target_date}.json"
     )
 
     if output.exists():
@@ -156,12 +253,27 @@ def main():
 
     print(
         "Prediction ID:",
-        frozen.get("prediction_id")
+        frozen.get("prediction_id"),
+    )
+
+    print(
+        "Prediction cutoff:",
+        frozen.get("prediction_cutoff"),
+    )
+
+    print(
+        "Target date:",
+        frozen.get("target_date"),
+    )
+
+    print(
+        "Calendar status:",
+        frozen.get("calendar_status"),
     )
 
     print(
         "Coverage:",
-        frozen.get("coverage")
+        frozen.get("coverage"),
     )
 
     print(
@@ -171,12 +283,12 @@ def main():
                 "candidates",
                 []
             )
-        )
+        ),
     )
 
     print(
         "Output:",
-        output
+        output,
     )
 
 
