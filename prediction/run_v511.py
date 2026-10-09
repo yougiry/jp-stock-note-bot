@@ -1,6 +1,6 @@
 import json
 import sys
-from datetime import datetime, time, timedelta
+from datetime import datetime, time
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -8,6 +8,7 @@ from collect import collect_market_data
 from source_audit import run_source_audit
 from scoring import run_scoring
 from freeze import create_freeze
+from trading_calendar import get_next_trading_day
 
 
 JST = ZoneInfo("Asia/Tokyo")
@@ -29,13 +30,15 @@ def fail(message):
 
 def get_prediction_cutoff(now):
     """
-    Return the official Prediction Cutoff.
+    Return the official v5.11 Prediction Cutoff.
 
-    v5.11 morning prediction is frozen at 06:00 JST.
+    Morning Prediction is frozen at 06:00 JST.
 
-    If execution occurs before 06:00 JST, the run must stop.
-    Information obtained after 06:00 JST must never flow back
-    into the Prediction.
+    Execution before 06:00 JST is not permitted.
+
+    Execution after 06:00 JST does not move the cutoff.
+    Information published or obtained after the cutoff
+    must not flow back into Prediction scoring.
     """
 
     cutoff = datetime.combine(
@@ -56,29 +59,6 @@ def get_prediction_cutoff(now):
     return cutoff
 
 
-def get_next_weekday(base_date):
-    """
-    Return the next weekday after base_date.
-
-    IMPORTANT:
-    This is only a temporary business-day resolver.
-
-    It excludes Saturday and Sunday but does not yet
-    exclude Japanese market holidays or special JPX
-    non-trading days.
-
-    A proper JPX trading calendar will replace this
-    function in the next implementation step.
-    """
-
-    candidate = base_date + timedelta(days=1)
-
-    while candidate.weekday() >= 5:
-        candidate += timedelta(days=1)
-
-    return candidate
-
-
 def main():
 
     execution_time = datetime.now(JST)
@@ -87,9 +67,20 @@ def main():
         execution_time
     )
 
-    target_day = get_next_weekday(
-        prediction_cutoff.date()
-    )
+    # ------------------------------------------
+    # Resolve next JPX trading day
+    # ------------------------------------------
+
+    try:
+        target_day = get_next_trading_day(
+            prediction_cutoff.date()
+        )
+
+    except (ValueError, TypeError, RuntimeError) as exc:
+        fail(
+            "Unable to resolve JPX trading day: "
+            f"{exc}"
+        )
 
     target_date = target_day.strftime("%Y%m%d")
 
@@ -115,7 +106,7 @@ def main():
 
     print(
         "Calendar status:",
-        "WEEKDAY_ONLY",
+        "JPX_VERIFIED",
     )
 
     # ------------------------------------------
@@ -181,7 +172,7 @@ def main():
 
     # ------------------------------------------
     # STEP 4
-    # Freeze
+    # Prediction Freeze
     # ------------------------------------------
 
     print("")
@@ -203,15 +194,17 @@ def main():
     # ------------------------------------------
 
     frozen["target_date"] = target_date
+
     frozen["execution_time"] = (
         execution_time.isoformat()
     )
+
     frozen["prediction_cutoff"] = (
         prediction_cutoff.isoformat()
     )
 
     frozen["calendar_status"] = (
-        "WEEKDAY_ONLY"
+        "JPX_VERIFIED"
     )
 
     frozen["prediction_status"] = (
